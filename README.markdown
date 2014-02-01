@@ -23,6 +23,7 @@ Not implemented:
 ### Controls
 `Arrow keys` or `h` `j` `k` `l` Movement  
 `w` `a` `s` `d` Melee attack   
+`t` Rest
 `i` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
 `<` `>` Use stairs   
