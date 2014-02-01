@@ -1,6 +1,8 @@
 /wanderers
 *~
 *.swp
+._d/
+._ncdi/
 *.annot
 *.cmo
 *.cma
