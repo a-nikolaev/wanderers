@@ -12,16 +12,16 @@ Open world roguelike. Currently, in a very early development stage.
 Half-done:
   * Economics of the world.   
   * Fully functional player-like NPCs and their hierarchical organizations.   
-  * Alternative attacking techniques (for some weapons).   
+  * Special attacking techniques for some weapons (such as long swords, spears, mauls etc.).   
 
 Not implemented:
   * Spell casting.  
   * Shops. Interesting NPCs and locations. More complex world topology.
   * Rumors, information spreading, reputation.  
-  * Apocalyptic events, villians, and winning conditions.
+  * Apocalyptic events, villains, and winning conditions.
 
 ### Controls
-`Arrow keys` or `h`, `j`, `k`, `l` Movement  
+`Arrow keys` or `h` `j` `k` `l` Movement  
 `w` `a` `s` `d` Melee attack   
 `i` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
