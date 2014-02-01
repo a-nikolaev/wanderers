@@ -1,0 +1,103 @@
+
+let rec fold_lim f a x xl = if x <= xl then fold_lim f (f a x) (x+1) xl else a
+let rec filtermap pred map = function
+  | hd::tl when pred hd -> map hd :: filtermap pred map tl
+  | _::tl -> filtermap pred map tl
+  | [] -> []
+
+let ( |> ) x f = f x
+
+type loc = int * int
+type vec = float * float
+
+let vec_of_loc (i,j) = (float i, float j)
+let loc_of_vec (x,y) = (int_of_float (floor (x+.0.5)), int_of_float (floor (y+.0.5)))
+
+let vec_len2 (x,y) = x*.x +. y*.y
+let vec_len (x,y) = sqrt(x*.x +. y*.y)
+
+let vec_dot_prod (x1,y1) (x2,y2) = x1*.x2 +. y1*.y2
+
+let loc_manhattan (x,y) = abs x + abs y
+let loc_infnorm (x,y) = max (abs x) (abs y)
+
+let ( ++ ) (x1,y1) (x2,y2) = (x1+x2, y1+y2)
+let ( -- ) (x1,y1) (x2,y2) = (x1-x2, y1-y2)
+let ( %% ) c (x,y) = (c*x, c*y) (* multiply *)
+
+let ( ++. ) (x1,y1) (x2,y2) = (x1+.x2, y1+.y2)
+let ( --. ) (x1,y1) (x2,y2) = (x1-.x2, y1-.y2)
+let ( %%. ) c (x,y) = (c*.x, c*.y) (* multiply *)
+let ( //. ) (x,y) c = (x/.c, y/.c) (* divide *)
+
+module Dir8 = struct
+  type t = E | NE | N | NW | W | SW | S | SE
+  let z = 0.9239 
+  let mz = -0.9239 
+  let of_vec v = 
+    let x,y = (1.0 /. vec_len v) %%. v in
+    if x > z then E else if x < mz then W
+    else if y > z then N else if y < mz then S
+    else if x > 0.0 then (if y > 0.0 then NE else SE)
+    else (if y > 0.0 then NW else SW)
+
+  let inv_sqrt_2 = 1.0 /. sqrt 2.0
+  let pos = inv_sqrt_2
+  let neg = -.inv_sqrt_2
+
+  let to_unit_vec = function
+    | E -> 1.0, 0.0
+    | NE -> pos, pos
+    | N -> 0.0, 1.0
+    | NW -> neg, pos
+    | W -> -1.0, 0.0
+    | SW -> neg, neg
+    | S -> 0.0, -1.0
+    | SE -> pos, neg
+    
+end
+
+let any_from_ls ls = 
+  let len = List.length ls in
+  if len > 0 then
+    Some (List.nth ls (Random.int len))
+  else
+    None
+
+let any_from_prob_ls ls = 
+  let rec next x = function  
+    | (v,p)::tl when x < p -> v 
+    | (v,p)::[] -> v
+    | (v,p)::tl -> next (x-.p) tl
+    | [] -> failwith "list is empty"
+  in
+  next (Random.float 1.0) ls
+
+let round_prob xf =
+  let z = int_of_float (floor xf) in
+  let dz = if Random.float 1.0 < xf -. float z then 1 else 0 in
+  z + dz
+
+let round xf =
+  int_of_float (floor (0.5 +. xf))
+
+module Resource = struct
+  type t = {wealth:int}
+
+  let make w = {wealth=w}
+
+  let zero = {wealth = 0}
+
+  let add {wealth=w1} {wealth=w2} = {wealth=w1+w2}
+  let subtract {wealth=w1} {wealth=w2} = {wealth=w1-w2}
+
+  let scale c {wealth} = {wealth = (c *. float wealth) |> round_prob}
+  
+  let intersection {wealth=w1} {wealth=w2} = {wealth = min w1 w2}
+
+  let lesseq r1 r2 = 
+    r1.wealth <= r2.wealth
+
+  let numeric {wealth} = wealth
+end
+
