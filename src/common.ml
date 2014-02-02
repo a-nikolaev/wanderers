@@ -82,7 +82,7 @@ type path = loc list
 
 type timed_action = Attack of (Fencing.technique * int) | Rest | Prepare of action
 
-and action = Walk of path | Run of path | Wait of (loc*float) 
+and action = Walk of (path*float) | Run of (path*float) | Wait of (loc*float) 
   | Lookaround of int
   | Timed of ((loc option)*float*float*timed_action)
   | FireProj of (loc)
@@ -551,10 +551,10 @@ module Unit = struct
   
   let cur_dest_loc u = 
     match u.ac with
-    | (Walk (loc::_))::_ | (Run (loc::_))::_ | (Wait (loc,_))::_ -> Some loc
+    | (Walk ((loc::_), _))::_ | (Run ((loc::_),_))::_ | (Wait (loc,_))::_ -> Some loc
     | (Timed (x,_,_,_))::_ -> x
 
-    | (Walk [])::_ | (Run [])::_ | (Lookaround _)::_ | (FireProj _)::_ | [] -> None
+    | (Walk ([],_))::_ | (Run ([],_))::_ | (Lookaround _)::_ | (FireProj _)::_ | [] -> None
 end
 
 (* units registry, by id and by loc *)

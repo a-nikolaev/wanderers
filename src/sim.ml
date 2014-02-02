@@ -74,10 +74,10 @@ let ff_path l = function hd::tl when l = hd -> tl | path -> path
 let ff_action_ls l = function 
   | (hd::tl) as acls ->
       ( match hd with
-        | Walk path -> 
-            (match ff_path l path with [] -> tl | npath -> Walk npath :: tl)
-        | Run path -> 
-            (match ff_path l path with [] -> tl | npath -> Run npath :: tl)
+        | Walk (path,_) -> 
+            (match ff_path l path with [] -> tl | npath -> Walk (npath,0.0) :: tl)
+        | Run (path,_) -> 
+            (match ff_path l path with [] -> tl | npath -> Run (npath,0.0) :: tl)
         | _ -> acls
       )
   | [] -> []
@@ -165,11 +165,19 @@ let move area ue dt u =
   match u.Unit.ac with
   | ac_hd::ac_tl ->
       ( match ac_hd with
-        | Walk path | Run path ->
+        | Walk (path, w) | Run (path, w) ->
             let target = vec_of_loc 
               (match path with hd::_ -> hd | _ -> u.Unit.loc) in
             let dv = target --. u.Unit.pos in
-            move_dv area ue dt dv u
+            let u' = move_dv area ue dt dv u in
+            (* advanse walking time *)
+            ( let ac =
+                match u'.Unit.ac with
+                | (Walk (path,w))::tl -> (Walk (path, w+.dt))::tl
+                | (Run (path,w))::tl -> (Run (path, w+.dt))::tl
+                | x -> x in
+              {u' with Unit.ac = ac}
+            )
         | Wait (loc,w) ->
             let dv = vec_of_loc loc --. u.Unit.pos in
             let u' = move_dv area ue dt dv u in
@@ -194,6 +202,16 @@ let adjust a u =
   let loc_now = loc_of_vec u.Unit.pos in
   let u1 = if loc_now <> u.Unit.loc then {u with Unit.loc = loc_now} else u in
 
+  (* don't wait for too long *)
+  let u1 = match u1.Unit.ac with
+    | (Walk (_,w))::_ | (Run (_,w))::_ ->
+        if  w > 3.0 +. 2.0 *. Unit.get_default_wait u1 then
+          {u1 with Unit.ac = [Wait (loc_now,0.0)]}
+        else
+          u1
+    | _ -> u1
+  in
+
   match u1.Unit.ac with
     (Wait _)::ac_tl -> 
       if reaction_roll u1 then 
@@ -201,7 +219,7 @@ let adjust a u =
       else u1
   | (Timed _)::_ | (Lookaround _)::_ | (FireProj _)::_ -> u1
   | [] -> u1
-  | _ ->
+  | (Walk _)::_ | (Run _)::_ ->
       let messedup = 
         match Unit.cur_dest_loc u with 
           Some x when x = u.Unit.loc -> true
@@ -331,7 +349,7 @@ let intel geo reg pol ue u =
                       let delaytime = Unit.get_default_ranged_wait u in
                       {u' with Unit.ac = [ Timed(Some u'.Unit.loc, 0.0, delaytime, Prepare(FireProj (tu.Unit.loc)))] }
                   | _ -> (* Melee attack *)
-                      {u' with Unit.ac = [Walk (Unit.make_path_to reg.R.a u' tu.Unit.loc)]} 
+                      {u' with Unit.ac = [Walk (Unit.make_path_to reg.R.a u' tu.Unit.loc, 0.0)]} 
                 )
             | _ ->
               (* try to recall the enemy's position *)
@@ -344,7 +362,7 @@ let intel geo reg pol ue u =
                     if Random.float 1.0 < to_wait then
                       {u' with Unit.ac = [Wait (u'.Unit.loc, 0.0)]} 
                     else
-                      {u' with Unit.ac = [Walk (make_some_random_path geo reg.R.rid reg.R.a u')]} )
+                      {u' with Unit.ac = [Walk (make_some_random_path geo reg.R.rid reg.R.a u', 0.0)]} )
                 | Some (ownloc, tid, tloc) ->
                   (* attack the enemy there *)
                   ( 
@@ -352,10 +370,10 @@ let intel geo reg pol ue u =
                     ( let path = Unit.make_path_to reg.R.a u' tloc in
                       match path with
                         [] ->
-                          { u' with Unit.ac = [Walk (make_some_random_path geo reg.R.rid reg.R.a u')];
+                          { u' with Unit.ac = [Walk (make_some_random_path geo reg.R.rid reg.R.a u', 0.0)];
                             Unit.tactmem = Unit.TactMem.empty;
                           }
-                      | _ -> {u' with Unit.ac = [Walk path]} 
+                      | _ -> {u' with Unit.ac = [Walk (path, 0.0)]} 
                     )
                     else
                     ( 
@@ -376,7 +394,7 @@ let intel geo reg pol ue u =
                       let dest_loc = any_from_prob_ls prob_ls in
 
                       {u' with 
-                        Unit.ac = [Walk (Unit.make_path_to reg.R.a u' dest_loc)];
+                        Unit.ac = [Walk (Unit.make_path_to reg.R.a u' dest_loc, 0.0)];
                         Unit.tactmem = if (Random.int 3 = 0) then Unit.TactMem.empty else u'.Unit.tactmem }
                     )
                   )

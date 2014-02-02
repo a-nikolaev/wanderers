@@ -81,9 +81,15 @@ let make w h debug =
       Some rid -> rid
     | _ ->
       let best_rid, best_val =
+        let centerxy = (w/2, h/2) in
         fold_lim (fun (rid,v) i ->
-          let x = Global.fget geo i player_faction in
-          if x > v then (i,x) else (rid,v)
+          let rz,(rxy) = geo.G.loc.(rid) in
+          let centrality = 
+            if rz = 0 then
+              5 / (1 + (loc_manhattan (rxy -- centerxy))/5)
+            else 0 in
+          let v' = Global.fget geo i player_faction + centrality in
+          if v' > v then (i,v') else (rid,v)
         ) (Random.int len,-1) 0 (len-1) in
       best_rid
   in
@@ -202,7 +208,7 @@ let respond s =
       let upd_one = meta_upd_one utl in
       let move dl =
         let nloc = u.Unit.loc ++ dl in
-        let nac = if true || is_walkable reg.R.a nloc then [Walk [nloc]] else [Wait (u.Unit.loc,0.0)] in
+        let nac = if true || is_walkable reg.R.a nloc then [Walk ([nloc], 0.0)] else [Wait (u.Unit.loc,0.0)] in
         let nue = E.upd {u with Unit.ac = nac} reg.R.e in
         upd_one nue
       in
