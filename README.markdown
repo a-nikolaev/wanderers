@@ -26,4 +26,5 @@ Not implemented:
 `t` Rest   
 `i` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
-`<` `>` Use stairs   
+`<` `>` Use stairs    
+`Ctrl+Q` Quit   

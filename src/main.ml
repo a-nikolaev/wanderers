@@ -86,6 +86,7 @@ let rec main_loop mode_state prev_ticks =
   ( match poll_event () with
     | Key k -> 
         main_loop (process_key_pressed k mode_state') ticks
+    | Quit -> main_loop State.Exit ticks
     | _ -> main_loop mode_state' ticks
   )
 
