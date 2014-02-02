@@ -25,26 +25,24 @@ end
 
 module Tile = struct
   type t = Grass | Wall | Tree1 | Tree2 | Rock1 | Rock2
-    | SwampyGround | RockyGround | SnowyGround | IcyGround
+    | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | OpenDoor 
     | DungeonFloor | DungeonWall
 
-  let is_slippery = function
-    IcyGround -> true
-  | _ -> false
-
   let get_traction = function
     | IcyGround -> 0.38
+    | SwampyPool -> 0.80
     | _ -> 1.0
   
   let get_friction = function
     | IcyGround -> 0.26
+    | SwampyPool -> 2.1
     | _ -> 1.0
 
   type tile_class = CFloor | CWall
 
   let classify = function
-    | Grass | SwampyGround | RockyGround | SnowyGround | IcyGround
+    | Grass | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | OpenDoor | DungeonFloor -> CFloor
     | Wall | Tree1 | Tree2 | Rock1 | Rock2 | DungeonWall -> CWall
 

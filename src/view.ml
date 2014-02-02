@@ -326,7 +326,7 @@ let draw_area t reg rm vision =
       | Some tile -> 
           ( if visible then glColor4f 1.0 1.0 1.0 1.0 else glColor4f 0.7 0.7 0.7 0.7;
 
-            let d_ground_img = if tile = Tile.IcyGround then (0.0, 1.0) else (0.0, 0.0) in
+            let d_ground_img = match tile with Tile.IcyGround | Tile.SwampyPool -> (0.0, 1.0) | _ -> (0.0, 0.0) in
             Draw.draw_bb ((if (i+j) mod 2 = 1 then def_ground_img else def_ground_img_alt) ++. d_ground_img) (i,j);
             ( match tile with
                 Tile.Wall -> Draw.draw_bb (0.0,3.0) (i,j)

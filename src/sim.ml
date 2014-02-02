@@ -205,7 +205,7 @@ let adjust a u =
   (* don't wait for too long *)
   let u1 = match u1.Unit.ac with
     | (Walk (_,w))::_ | (Run (_,w))::_ ->
-        if  w > 3.0 +. 2.0 *. Unit.get_default_wait u1 then
+        if  w > 3.0 +. 3.0 *. Unit.get_default_wait u1 then
           {u1 with Unit.ac = [Wait (loc_now,0.0)]}
         else
           u1

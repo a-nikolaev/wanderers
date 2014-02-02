@@ -96,12 +96,15 @@ let gen pol edges_func rid rm =
   in
 
   let high_altitude = float (rm.RM.altitude - 830) /. 170.0 in
+  
+  let low_altitude = float (200 - rm.RM.altitude) /. 200.0 in
 
   let prob_ls = match rm.RM.biome with
   | RM.Forest | RM.ForestMnt -> [Tile.Tree1,0.07; Tile.Tree2,0.09; Tile.Rock1, 0.004; Tile.Rock2, 0.004; Tile.Wall,0.002; ground_tile,1.00]
   | RM.DeepForest -> [Tile.Tree1,0.07; Tile.Tree2,0.12; Tile.Rock1, 0.003; Tile.Rock2, 0.003; Tile.Wall,0.0005; ground_tile,1.00]
   | RM.Plains -> [Tile.Tree1,0.02; Tile.Tree2,0.01; Tile.Rock1, 0.002; Tile.Rock2, 0.002; Tile.Wall,0.001; ground_tile,1.00]
-  | RM.Swamp -> [Tile.Tree1,0.005; Tile.Tree2,0.04; Tile.Wall,0.002; ground_tile,1.00]
+  | RM.Swamp -> [Tile.Tree1,0.005; Tile.Tree2,0.04; Tile.Wall,0.002; 
+      Tile.SwampyPool,0.05 +. 0.6 *. low_altitude; ground_tile,1.00]
   | RM.Mnt -> [Tile.Tree1,0.005; Tile.Tree2,0.03; Tile.Rock1, 0.02; Tile.Rock2, 0.02; Tile.Wall,0.002; ground_tile,1.00]
   | RM.SnowMnt -> [Tile.Tree1,0.0005; Tile.Tree2,0.02; Tile.Rock1, 0.03; Tile.Rock2, 0.03; Tile.Wall,0.001; 
       Tile.IcyGround, 0.05 +. 0.80 *. high_altitude; ground_tile,1.00]
