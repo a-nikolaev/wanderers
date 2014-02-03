@@ -76,7 +76,7 @@ let rec main_loop mode_state prev_ticks =
     );
   let mode_state' = match mode_state with
   | State.Play s ->
-      State.Play (Sim.run ( 0.01 *. float (ticks - prev_ticks)) s) 
+      State.Play (Sim.run ( 0.0105 *. float (ticks - prev_ticks)) s) 
   | ms -> ms
   in
 

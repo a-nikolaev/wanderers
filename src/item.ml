@@ -183,7 +183,7 @@ module Coll = struct
         let size = Random.int 8 in
         let price = stdprice size in
         let s = float size in
-        let weight = (sword_weight s) *. 1.1 in
+        let weight = (sword_weight s) *. 1.15 in
         let prop = PS.empty 
           |> PS.add (melee (s *. 1.1) 1.0) 
           |> PS.add (`Weight (weight)) 
@@ -206,7 +206,7 @@ module Coll = struct
         let s = float size in
         let weight = (sword_weight s) *. 1.2 in
         let prop = PS.empty 
-          |> PS.add (melee (s*.1.3) 1.2)
+          |> PS.add (melee (s*.1.25) 1.2)
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable in
         {name = "Mace-"^(string_of_int size); prop; imgindex = index kind size; price}
@@ -216,7 +216,7 @@ module Coll = struct
         let s = float size in
         let weight = (sword_weight s) *. 1.3 in
         let prop = PS.empty
-          |> PS.add (melee (s*.1.5) 1.3)
+          |> PS.add (melee (s*.1.35) 1.3)
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable in
         {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price}
