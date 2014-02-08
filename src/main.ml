@@ -120,8 +120,8 @@ let test_fake_fight () =
   let res = Base.Resource.make 1000 in
   let rm = Common.({rm with RM.lat = {rm.RM.lat with Mov.res = res}}) in
 
-  let oc1 = Org.random_unit_core pol rm in
-  let oc2 = Org.random_unit_core pol rm in
+  let oc1 = Org.get_random_unit_core pol rm in
+  let oc2 = Org.get_random_unit_core pol rm in
 
   let print = Common.Unit.Core.print in 
 

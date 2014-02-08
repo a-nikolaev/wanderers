@@ -64,6 +64,12 @@ let fold f acc inv =
 let decompose inv =
   fold (fun acc _ _ obj -> Resource.add acc (Item.decompose obj)) Resource.zero inv
 
+let remove_everything inv =
+  let cnt' =
+    M.map (fun c -> Item.Cnt.remove_everything c) inv.cnt in
+  {inv with cnt = cnt'}
+
+
 let default = 
   {cnt = map_of_list [(0, Cnt.empty_nat_human); (1, Cnt.empty_unlimited)]; limit = 4}
 

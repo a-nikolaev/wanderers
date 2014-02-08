@@ -148,7 +148,7 @@ end
 
 module Unit = struct
   module Core = struct
-    type properties = {reaction:float; mass:float; radius:float; athletic:float; basedmg:float;}
+    type properties = {reaction:float; mass:float; radius:float; athletic:float; basedmg:float; courage:float;}
     type aux = {mass_carry: float; mass_wear: float; mass_wield: float; 
       unenc_melee: Item.Melee.t; unenc_ranged: Item.Ranged.t option; unenc_defense: float;
       fm: float;
@@ -177,7 +177,9 @@ module Unit = struct
         reaction;
         mass;
         radius = comp_radius mass;
-        basedmg = 1.0; }
+        basedmg = 1.0; 
+        courage = 0.95;
+      }
     type t = {
       fac:faction; sp:Species.t;
       hp: float;
@@ -296,17 +298,26 @@ module Unit = struct
     let get_total_mass uc = 
       (uc.prop.mass +. uc.aux.mass_carry +. uc.aux.mass_wear +. uc.aux.mass_wield)
     let get_fm uc = uc.aux.fm
+    let get_sp uc = uc.sp
  
     let get_hp uc = uc.hp
-    let get_sp uc = uc.sp
+    
+    let get_max_hp uc = uc.prop.mass
 
     let get_reaction uc = uc.prop.reaction
     let get_athletic uc = uc.prop.athletic
     let get_own_mass uc = uc.prop.mass
+    let get_courage uc = uc.prop.courage
+    
+    let get_fm uc = uc.aux.fm
   
     let get_default_wait uc = (uc.prop.reaction) /. (max 0.1 uc.aux.fm)
     
     let get_default_ranged_wait uc = (1.0 +. uc.prop.reaction) /. (max 0.1 uc.aux.fm)
+    
+    let get_faction uc = uc.fac
+    
+    let get_inv uc = uc.inv
   
     let is_alive uc = uc.hp > 0.0
 
@@ -322,7 +333,7 @@ module Unit = struct
     let heal dhp uc = {uc with hp = min (uc.hp +. dhp) uc.prop.mass}
 
     let make fac sp controller =
-      let {reaction; mass; radius; athletic; basedmg} = rnd_prop() in
+      let {reaction; mass; radius; athletic; basedmg; courage} = rnd_prop() in
       let prop = 
         {
         reaction = reaction *. Species.xreaction sp; 
@@ -330,6 +341,7 @@ module Unit = struct
         radius = comp_radius (mass *. Species.xmass sp);
         athletic = athletic*.Species.xathletic sp;
         basedmg = basedmg *. Species.xbasedmg sp;
+        courage = courage;
         } in
       let aux = {mass_carry = 0.0; mass_wear = 0.0; mass_wield = 0.0; 
         unenc_melee = Item.Melee.({attrate=1.0; duration=1.0});
@@ -362,7 +374,14 @@ module Unit = struct
       let uc, res = additem uc res in
       (adjust_aux_info uc, res)
 
+    let items_ls uc =
+      Inv.fold (fun ls _ _ obj -> obj::ls) [] (get_inv uc)
+
     let decompose uc = Inv.decompose uc.inv 
+
+    let approx_strength uc = 
+      let items = Resource.numeric (decompose uc) in
+      get_athletic uc *. get_hp uc /. (get_reaction uc) *. get_fm uc *. float items 
 
     let print c = 
       Printf.printf "m=%.0f, re=%.1f, ath=%.1f;   "
@@ -405,7 +424,7 @@ module Unit = struct
       else 
       ( match Sf.choose enemymem with
         | EnemySeen x -> Some x
-        | _ -> None )
+       )
   end
 
 
@@ -427,16 +446,16 @@ module Unit = struct
   let get_melee u = u.core.Core.aux.Core.melee
   let get_ranged u = u.core.Core.aux.Core.ranged
   let get_defense u = u.core.Core.aux.Core.defense
-  let get_total_mass u = 
-    Core.(u.core.prop.mass +. u.core.aux.mass_carry +. u.core.aux.mass_wear +. u.core.aux.mass_wield)
+  let get_total_mass u = Core.get_total_mass u.core 
   let get_faction u = u.core.Core.fac
+  let get_sp u = u.core.Core.sp
   let get_controller u = u.core.Core.controller
   
   let get_hp u = u.core.Core.hp
-  let get_sp u = u.core.Core.sp
 
   let get_reaction u = u.core.Core.prop.Core.reaction
   let get_athletic u = u.core.Core.prop.Core.athletic
+  let get_courage u = Core.get_courage u.core
 
   let get_default_wait u = Core.get_default_wait u.core
   
@@ -785,10 +804,26 @@ let find_entry_loc (i,j) edge area obj =
 
 module Decision = struct
 
-  type intention = Kill | Beat | Ignore | Trade_with
+  type intention = Kill | Beat | Ignore | Avoid | Trade_with
   module C = struct
+
+    let initiative_roll_against c1 c2 =
+      let str1 = Unit.Core.approx_strength c1 in
+      let str2 = Unit.Core.approx_strength c2 in
+      Random.float (str1 +. str2) < str1
+
     let get_intention pol c1 c2 = 
-      if pol.Pol.rel_act.(c1.Unit.Core.fac).(c2.Unit.Core.fac) < 0. then Kill else Ignore
+      let courage = Unit.Core.get_courage c1 in
+      let str1 = Unit.Core.approx_strength c1 in
+      let str2 = Unit.Core.approx_strength c2 in
+      if pol.Pol.rel_act.(c1.Unit.Core.fac).(c2.Unit.Core.fac) < 0. then 
+        ( if str1 > courage *. str2 then
+            Kill
+          else
+            Kill
+        )
+      else 
+        Ignore
   end
   
   module U = struct

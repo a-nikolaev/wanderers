@@ -40,6 +40,14 @@ module Actor = struct
     let core = Unit.Core.make fac sp None in
     {aid = gen_id(); core; rid; cl; res = Resource.zero}
 
+  let update_core a core = {a with core}
+
+  let decompose a = Resource.add (Unit.Core.decompose a.core) a.res
+
+  let get_rid a = a.rid
+  let get_aid a = a.aid
+  let get_core a = a.core
+
 end
 
 module Ma = Map.Make(struct type t = Actor.id let compare = compare end)
@@ -169,9 +177,8 @@ module Astr = struct
 end
 
 
-
 (* generate a random unit core from rm *)
-let random_unit_core pol rm =
+let get_random_unit_core pol rm =
   (* take into account only unallocated movables *)
   let fac_arr = rm.RM.lat.Mov.fac in
  

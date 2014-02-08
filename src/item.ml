@@ -147,9 +147,12 @@ module Cnt = struct
       Some obj
     else
       None
-
   let fold f acc c =
     M.fold (fun si obj acc -> f acc si obj) c acc
+
+  let remove_everything c = 
+    {c with item = M.empty}
+
 end
 
 (* Collection of objects *)
