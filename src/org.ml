@@ -225,7 +225,13 @@ module Astr = struct
               (g, update a astr)
           | None -> (g,astr)
         )
-          
+
+  let fold_at rid f acc astr = 
+    Sa.fold (fun e acc -> f acc e) astr.regsa.(rid) acc 
+  
+  let iter_at rid f astr = 
+    Sa.iter (fun e -> f e) astr.regsa.(rid) 
+
 end
 
 

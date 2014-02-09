@@ -184,7 +184,6 @@ let draw_atlas atlas =
               glColor4f 1.0 1.0 1.0 (0.5*.alpha_marks); 
               let img = (17.0, 6.0) in
               Draw.draw_ss img (scrloc loc) 
-          | _ -> ()
         )
         rmp.Atlas.markls;
     )

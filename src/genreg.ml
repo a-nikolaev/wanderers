@@ -86,6 +86,9 @@ let maze a wall floor (x,y,dx,dy) =
 let gen pol edges_func rid rm =
   let w = 25 in
   let h = 16 in
+
+  let prng_state = Random.get_state() in
+
   Random.init rm.RM.seed;
   let ground_tile = match rm.RM.biome with
     | RM.Mnt | RM.ForestMnt -> Tile.RockyGround
@@ -143,7 +146,7 @@ let gen pol edges_func rid rm =
   let explored = Area.make w h None in
  
   (* restart random number initializer *)
-  Random.self_init ();
+  Random.set_state prng_state;
  
   let fac_arr, units_to_gen = 
     let total = Array.fold_left (fun sum v -> sum + v) 0 rm.RM.lat.Mov.fac in

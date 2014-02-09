@@ -29,10 +29,11 @@ SOURCES=$(WIN_SOURCE) $(SDL_SOURCE) $(GL_SOURCE) \
   $(SRCDIR)/item.ml \
   $(SRCDIR)/inv.ml \
   $(SRCDIR)/common.ml \
-  $(SRCDIR)/genreg.ml \
   $(SRCDIR)/global.ml \
   $(SRCDIR)/org.ml \
   $(SRCDIR)/simorg.ml \
+  $(SRCDIR)/genreg.ml \
+  $(SRCDIR)/globalmove.ml \
   $(SRCDIR)/genmap.ml \
 	$(SRCDIR)/vision.ml \
 	$(SRCDIR)/politics.ml \

@@ -458,7 +458,7 @@ let run_for_one dt u s (reg, need_input) =
 
 let transfer_from reg pol controller_id geo =
   E.fold (fun geo_acc u -> 
-    geo_acc |> G.unit_transfer u reg pol (Unit.get_controller u = Some controller_id)        
+    geo_acc |> Globalmove.unit_transfer u reg pol (Unit.get_controller u = Some controller_id)        
   ) geo reg.R.e
 
 

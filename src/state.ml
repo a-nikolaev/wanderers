@@ -97,7 +97,7 @@ let make w h debug =
       best_rid
   in
   let geo = {geo with G.currid = new_currid} in
-  let geo = geo |> G.move pol South |> G.move pol North in 
+  let geo = geo |> Globalmove.move pol South |> Globalmove.move pol North in 
   let reg = G.curr geo in
   let controller_id = 0 in
   let location = find_walkable_location_reg reg in

@@ -16,7 +16,7 @@ let process_key_pressed k = function
     State.Play s ->
       let g m = State.Play (State.respond s m) in
       let ctrl = List.mem KMOD_LCTRL k.modifiers in
-      let shift = List.mem KMOD_LSHIFT k.modifiers || List.mem KMOD_RSHIFT k.modifiers in
+      (* let shift = List.mem KMOD_LSHIFT k.modifiers || List.mem KMOD_RSHIFT k.modifiers in *)
       State.
       ( match k.sym, k.keystate with
         | K_Q, PRESSED when ctrl -> State.Exit
