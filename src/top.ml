@@ -95,7 +95,8 @@ let growth speedup pol g facnum rid =
     let slowdown = 0.05 *. speedup in
     (* production efficiency per person *)
     let argx = (1.1 +. 0.1 *. float (urbn + round_prob (sqrt(float agro)) )) in
-    let argx = argx +. 0.1 *. get_difficulty g rid in
+    (* production - adjust to the difficulty level of the region *)
+    let argx = argx +. 0.05 *. get_difficulty g rid in
     (* consumption per person *)
     let argy = 1.0 in
     (* life cost per person *)
@@ -242,8 +243,17 @@ let economics speedup pol g facnum rid =
       | _ -> () )
   ) (* not a dungeon *)
 
+let sim_actors speedup pol (g, astr) =
+  (* add new actors *)
+  let n = round_prob speedup in
+  let ga_upd = 
+    fold_lim (fun ga i -> Org.Astr.add_new_actor pol ga) (g, astr) 1 n
+  in
+  (* simulate the existing ones *)
+  let accept_prob = 0.1 *. speedup in
+  Simorg.run accept_prob pol ga_upd 
 
-let run speedup pol g =
+let run speedup pol (g, astr) =
   let facnum = fnum g in
   let len = G.length g in
   let execute func = 
@@ -255,4 +265,6 @@ let run speedup pol g =
   execute growth;
   execute economics;
   execute migrate;
-  g
+
+  let g_astr' = sim_actors speedup pol (g, astr) in
+  g_astr'

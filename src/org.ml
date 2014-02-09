@@ -21,6 +21,30 @@ open Common
 open Global
 
 
+(* generate a random unit core from rm *)
+let get_random_unit_core pol rm =
+  (* take into account only unallocated movables *)
+  let fac_arr = rm.RM.lat.Mov.fac in
+ 
+  let total = Array.fold_left (fun sum v -> sum + v) 0 fac_arr in
+
+  if total <= 0 then None
+  else
+  ( let facnum = Array.length fac_arr in
+    let rec next v fac = 
+      if fac < facnum then 
+      ( let x = v - fac_arr.(fac) in
+        if x <= 0 then fac else next x (fac+1) )
+      else
+        failwith "Org.random_unit_core: bad number of units"
+    in
+    let fac = next (Random.int total) 0 in
+    let res = rm.RM.lat.Mov.res in
+    match any_from_ls pol.Pol.prop.(fac).Pol.speciesls with 
+      Some sp -> Some (Unit.Core.make_res fac sp None res)
+    | _ -> None
+  )
+
 
 module Actor = struct
   type cl = 
@@ -39,6 +63,9 @@ module Actor = struct
   let make rid fac sp cl = 
     let core = Unit.Core.make fac sp None in
     {aid = gen_id(); core; rid; cl; res = Resource.zero}
+   
+  let make_from_core rid core cl =
+    {aid = gen_id(); core; rid = rid; cl = cl; res = Resource.zero;}
 
   let update_core a core = {a with core}
 
@@ -57,8 +84,8 @@ module Sa = Set.Make(struct type t = Actor.id let compare = compare end)
 module Bwc = struct
   type t = {sum: float array; cur: float array; total: float}
 
-  (* 9 -> 10 -> 12 -> 16 -> 32 -> ... *)
-  let rec next x = if x land 1 = 0 then (next (x asr 1)) lsl 1 else x + 1 
+  (* 8 -> 9 -> 11 -> 15 -> 31 -> ... *)
+  let rec next x = if x land 1 = 1 then ((next (x asr 1)) lsl 1 + 1) else x + 1 
   
   let make size = {sum = Array.make size 0.0; cur = Array.make size 0.0; total = 0.0 }
 
@@ -79,8 +106,8 @@ module Bwc = struct
 
     let rec search x di =
       if di < top then
-      ( let (i, wg) = search x (di lsl 1) in
-        let i' = i lor di in
+      ( let (i, wg) = search x (di lsl 1 + 1) in
+        let i' = (i + 1) lor di in
         if i' < top then
         ( let wg' = wg +. bwc.sum.(i') in
           if wg' -. bwc.cur.(i') < x then
@@ -94,7 +121,7 @@ module Bwc = struct
       else
         (0, 0.0)
     in
-    fst(search x 1)
+    fst(search x 0)
 
   let random bwc = binary_search bwc (Random.float bwc.total)
 
@@ -174,32 +201,33 @@ module Astr = struct
     let rid = Bwc.random astr.counter in
     get_random_from rid astr
 
+  (* add a new actor (creation is not guaranteed) *) 
+  let add_new_actor pol (g, astr) =
+    let rid = Random.int (Array.length g.G.rm) in
+    match Prio.get rid g.G.prio with
+      Some _ -> (g, astr)
+    | None ->
+        let facnum = fnum g in
+        let total_pop = fold_lim (fun sum i -> sum + fget g rid i) 0 0 (facnum-1) in
+        let total_actors = get_actors_num_at rid astr in
+        if total_actors + total_pop > 0 && 
+          Random.int (total_actors + total_pop) < total_actors then
+          (g, astr)
+        else
+        ( match get_random_unit_core pol (g.G.rm.(rid)) with
+          | Some (core, lat_res_left) ->
+              rset_lat g rid lat_res_left;
+
+              let a = Actor.make_from_core rid core Actor.Adventurer in
+              let faction = Unit.Core.get_faction core in
+              let pop_lat = fget_lat g rid faction in
+              fset_lat g rid faction (max 0 (pop_lat-1));
+              (g, update a astr)
+          | None -> (g,astr)
+        )
+          
 end
 
-
-(* generate a random unit core from rm *)
-let get_random_unit_core pol rm =
-  (* take into account only unallocated movables *)
-  let fac_arr = rm.RM.lat.Mov.fac in
- 
-  let total = Array.fold_left (fun sum v -> sum + v) 0 fac_arr in
-
-  if total <= 0 then None
-  else
-  ( let facnum = Array.length fac_arr in
-    let rec next v fac = 
-      if fac < facnum then 
-      ( let x = v - fac_arr.(fac) in
-        if x <= 0 then fac else next x (fac+1) )
-      else
-        failwith "Org.random_unit_core: bad number of units"
-    in
-    let fac = next (Random.int total) 0 in
-    let res = rm.RM.lat.Mov.res in
-    match any_from_ls pol.Pol.prop.(fac).Pol.speciesls with 
-      Some sp -> Some (Unit.Core.make_res fac sp None res)
-    | _ -> None
-  )
 
 module UC = Unit.Core
 (* fake fight simulation  *)

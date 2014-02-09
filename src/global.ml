@@ -120,6 +120,9 @@ module G = struct
     else
       None
 
+  let get_only_nb_rid_ls givenrid g =
+    Me.fold (fun _ rid ls -> rid :: ls) (g.nb.(givenrid)) [] 
+
   (* unit transfers from one region to another. *)
   let unit_transfer u reg pol b_move_currid g = 
     match u.Unit.transfer with

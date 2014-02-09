@@ -34,6 +34,8 @@ type t =
 
     pol : Pol.t;
 
+    astr: Org.Astr.t;
+
     vision : int Area.t;
 
     atlas : Atlas.t;
@@ -49,10 +51,11 @@ let make w h debug =
   let geo_h = 35 in
   let pol = Politics.make_variety facnum in
   let geo = Genmap.make_geo geo_w geo_h facnum in
-  let geo = 
-    let simulate speedup steps g = fold_lim (fun g _ -> g |> Top.run speedup pol) g 0 steps in
+  let astr = Org.Astr.make_empty (Array.length geo.G.rm) in
+  let geo, astr = 
+    let simulate speedup steps ga = fold_lim (fun ga _ -> ga |> Top.run speedup pol) ga 0 steps in
     let d = 30 in
-    geo 
+    (geo, astr) 
     |> simulate  1.0 d
     |> simulate  2.0 d 
     |> simulate  4.0 d 
@@ -128,6 +131,7 @@ let make w h debug =
     top_rem_dt = 0.0;
     controller_id = controller_id;
     pol = pol;
+    astr;
     vision = (
       let a = (G.curr geo').R.a in
       Area.make (Area.w a) (Area.h a) 0 

@@ -527,7 +527,7 @@ let run dt s =
       let step_dt = 10.0 in
       let number = ( s.State.top_rem_dt /. step_dt ) |> floor |> int_of_float  in
       let number = if number > 0 then 1 else 0 in
-      let upd_geo = fold_lim (fun g _ -> Top.run 1.0 s.pol g) s.geo 1 number in
+      let upd_geo, upd_astr = fold_lim (fun ga _ -> Top.run 1.0 s.pol ga) (s.geo, s.astr) 1 number in
       let upd_atlas = 
         if s.State.atlas.Atlas.currid <> s.State.geo.G.currid then
           Global.Atlas.update s.State.pol upd_geo s.State.atlas 
@@ -536,6 +536,7 @@ let run dt s =
       in
       {s with 
         State.geo = upd_geo;
+        State.astr = upd_astr;
         State.atlas = upd_atlas;
         State.top_rem_dt = 
           s.State.top_rem_dt -. float number *. step_dt; 

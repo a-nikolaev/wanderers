@@ -69,7 +69,7 @@ let dissolve_lat_res g rid res =
 (* update the state of the system with an updated actor *)
 let update_rid_actor_g_astr rid a (g, astr) =
   if Unit.Core.is_alive (Actor.get_core a) then
-    (g, astr)
+    (g, Astr.update a astr)
   else
     let res = Actor.decompose a in
     dissolve_lat_res g rid res;
@@ -103,6 +103,18 @@ let digest_core my_core opp_core =
     {opp_core with Unit.Core.inv = Inv.remove_everything (Unit.Core.get_inv opp_core)},
     leftovers )
 
+(* transfer the actor *)
+let transfer_actor a nrid (g, astr) =
+  match Prio.get nrid g.G.prio with
+    Some nreg ->
+      (* Don't let it move into the simulated region *)
+      (g, astr)
+  | None ->
+      let a_upd = Actor.({a with rid = nrid}) in
+      (g, astr |> Astr.update a_upd)
+
+
+(* Main adventurer simulation function *)
 let sim_adventurer pol a (g, astr) =
   let rid = Actor.get_rid a in
   let facnum = fnum g in
@@ -110,9 +122,9 @@ let sim_adventurer pol a (g, astr) =
   let num_lat_pop = fold_lim (fun acc fac -> acc + fget_lat g rid fac) 0 0 (facnum-1) in
   (* 2 *)
   let num_lat_actors = Astr.get_actors_num_at rid astr in
-  let exits_ls = G.get_nb_ls rid g in
+  let nb_rid_ls = G.get_only_nb_rid_ls rid g in
   (* 3 *)
-  let num_exits = List.length exits_ls in
+  let num_exits = List.length nb_rid_ls in
   
   let rm = g.G.rm.(rid) in
 
@@ -129,6 +141,7 @@ let sim_adventurer pol a (g, astr) =
     let x = any_from_prob_ls prob_ls in
     match x with
     | 0 ->
+        (* encounter a local inhabitant *)
         ( match get_random_unit_core pol rm with
           | Some (opp_core, _) ->
             ( let my_core = Actor.get_core a in
@@ -162,8 +175,9 @@ let sim_adventurer pol a (g, astr) =
           | None -> (g, astr)
         )
     | 1 ->
+        (* encounter an actor (active NPC) *)
         ( match  Astr.get_random_from rid astr with
-          | Some opp_actor ->
+          | Some opp_actor when Actor.get_aid opp_actor <> Actor.get_aid a ->
               let my_core = Actor.get_core a in
               let opp_core = Actor.get_core opp_actor in
               ( if will_we_fight pol my_core opp_core then
@@ -192,7 +206,15 @@ let sim_adventurer pol a (g, astr) =
               )
           | _ -> (g, astr) 
         )
-    | _ -> (g, astr)
+    | _ ->
+        (* found an exit *)
+        ( match any_from_ls nb_rid_ls with
+          | Some nb_rid ->
+              (g, astr) |> transfer_actor a nb_rid 
+          | None ->
+              (g, astr)
+        )    
+    | _ -> (g,astr)
   )
   else
     (g, astr)
@@ -211,7 +233,7 @@ let run accept_prob pol (geo, astr) =
   let simnum = round_prob (float num *. accept_prob) in
 
   fold_lim (fun ((acc_geo, acc_astr) as acc) _ -> 
-    match Astr.get_random astr with 
-      Some a -> sim_one pol a acc
+    match Astr.get_random acc_astr with 
+      Some a -> sim_one pol a acc 
     | None -> acc
   ) (geo, astr) 0 simnum

@@ -437,6 +437,8 @@ module Unit = struct
     fnctqn: Fencing.tq_name;
     ntfy: notification list;
     tactmem: TactMem.t;
+
+    optaid: int option; (* actor's id, if any *)
     }
 
 
@@ -480,6 +482,7 @@ module Unit = struct
           fnctqn = Fencing.default_tqn;
           ntfy = [];
           tactmem = TactMem.empty;
+          optaid = None;
         }
     )
   let make = create_maker ()

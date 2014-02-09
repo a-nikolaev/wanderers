@@ -138,11 +138,12 @@ let test_fake_fight () =
   | _ -> () 
 
 let test_bwc () =
-  let len = 16 in
+  let len = 15 in
   let c = Org.Bwc.make len in
+  let c = Org.Bwc.add 0 1.0 c in
   let c = Org.Bwc.add 4 1.0 c in
   let c = Org.Bwc.add 5 1.0 c in
-  let c = Org.Bwc.add 11 1.0 c in
+  let c = Org.Bwc.add 10 1.0 c in
   for i = 0 to len-1 do
     printf "%i\t %g\t %g \n" i c.Org.Bwc.cur.(i) c.Org.Bwc.sum.(i)
   done;
@@ -153,17 +154,20 @@ let test_bwc () =
       repeat (x+.dx) dx xmax
     )
   in
-  repeat 0.0 0.1 3.2
+  repeat 0.0 0.1 4.2
 
 let _ = 
   try
     (*
 	  test_fake_fight ()
     *)
+   
     (*
     test_bwc ()
     *)
+    
     main ()
+    
 	with
 		SDL_failure m -> failwith m    
 
