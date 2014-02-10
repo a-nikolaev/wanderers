@@ -621,6 +621,7 @@ let draw_state t s =
                   )
             );
             Draw.put_string Unit.(Printf.sprintf "Mass: %.2g" mass) (60, 32); 
+            
             (*
             if melee_attrate > 0.0 then 
               Draw.put_string Unit.(Printf.sprintf "Atk:%.2g Dur:%.2g" melee_attrate melee_duration) (60, 33);
@@ -631,6 +632,10 @@ let draw_state t s =
             *)
         | None -> ()
       );
+      glColor4f 0.24 0.24 0.24 1.0; 
+      Draw.put_string "0." (51, 35); 
+      Draw.put_string "1." (51, 31); 
+      Draw.put_string "2." (51, 29); 
       (* inventory cursor *)
       glColor4f 1.0 1.0 1.0 1.0; 
       let jj = match invclass with State.CtrlM.InvGround -> 18 | _ -> 16 in
