@@ -413,7 +413,14 @@ let draw_state t s =
             ) in
 
           Draw.draw_bb_vec img (u.Unit.pos); 
-         
+        
+          (* actors badge *)
+          ( match u.Unit.optaid with 
+              Some _ ->
+                Draw.draw_bb_vec (0.0, 10.0) (u.Unit.pos); 
+            | _ -> ()
+          )
+
           (*
           match Unit.cur_dest_loc u with
             Some loc -> 

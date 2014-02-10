@@ -75,6 +75,9 @@ module Actor = struct
   let get_aid a = a.aid
   let get_core a = a.core
 
+  let make_unit a loc = 
+    let u = Unit.make_core (get_core a) None loc in
+    Unit.({u with optaid = Some (get_aid a)})
 end
 
 module Ma = Map.Make(struct type t = Actor.id let compare = compare end)
@@ -124,7 +127,6 @@ module Bwc = struct
     fst(search x 0)
 
   let random bwc = binary_search bwc (Random.float bwc.total)
-
 end
 
 module Astr = struct
@@ -204,6 +206,14 @@ module Astr = struct
   (* add a new actor (creation is not guaranteed) *) 
   let add_new_actor pol (g, astr) =
     let rid = Random.int (Array.length g.G.rm) in
+
+    let core_satisfies core =
+      let gen, _ = Unit.Core.get_sp core in
+      match gen with
+        Species.Cow | Species.Horse | Species.Wolf -> false
+      | _ -> true
+    in
+
     match Prio.get rid g.G.prio with
       Some _ -> (g, astr)
     | None ->
@@ -215,7 +225,7 @@ module Astr = struct
           (g, astr)
         else
         ( match get_random_unit_core pol (g.G.rm.(rid)) with
-          | Some (core, lat_res_left) ->
+          | Some (core, lat_res_left) when core_satisfies core ->
               rset_lat g rid lat_res_left;
 
               let a = Actor.make_from_core rid core Actor.Adventurer in
@@ -223,15 +233,42 @@ module Astr = struct
               let pop_lat = fget_lat g rid faction in
               fset_lat g rid faction (max 0 (pop_lat-1));
               (g, update a astr)
-          | None -> (g,astr)
+          | _ -> (g,astr)
         )
 
-  let fold_at rid f acc astr = 
-    Sa.fold (fun e acc -> f acc e) astr.regsa.(rid) acc 
-  
-  let iter_at rid f astr = 
-    Sa.iter (fun e -> f e) astr.regsa.(rid) 
+  let fold_at rid f acc astr =
+    let sa = astr.regsa.(rid) in
+    Sa.fold (fun aid acc -> match get aid astr with Some a -> f acc a | None -> acc) sa acc 
 
+
+  let move_actor a nrid astr = 
+    let a_upd = Actor.({a with rid = nrid}) in
+    update a_upd astr
+
+  (* updates only existing actors *)
+  let update_from_unit u rid astr =
+    match Unit.get_optaid u with
+      Some aid ->
+        ( match get aid astr with
+          | Some a -> 
+              let a_upd = Actor.update_core a (Unit.get_core u) in
+              move_actor a_upd rid astr
+          | None -> 
+              (* failwith "Astr.update_from_unit: actor does not exist" *)
+              astr
+        )
+    | None -> astr
+  
+  let remove_from_unit u astr =
+    match Unit.get_optaid u with
+    | Some aid ->
+        ( match get aid astr with
+          | Some a -> remove a astr
+          | None -> 
+              (* failwith "Astr.remove_from_unit: actor does not exist" *)
+              astr
+        )
+    | None -> astr
 end
 
 

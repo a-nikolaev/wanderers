@@ -305,7 +305,9 @@ let timed dt ( (ue, ((hold_opt, t_passed, t_end, ta) as ta_full), u) as args ) =
 (* come up with new actions *)
 let intel geo reg pol ue u =
   (* if u does not like other_u: *)
-  let g = List.filter (fun other_u -> Decision.U.get_intention pol u other_u = Decision.Kill) in
+  let g = List.filter (fun other_u -> 
+    match Decision.U.get_intention pol u other_u with Decision.Kill | Decision.Avoid -> true | _ -> false) 
+  in
   let h dl = E.at (u.Unit.loc ++ dl) ue in
   let f dl = g (h dl) in
   if u.Unit.ac = [] then
@@ -404,7 +406,7 @@ let intel geo reg pol ue u =
 
 (* helper function *)
 (* run simulation for a single unit, return reg and need_input *)
-let run_for_one dt u s (reg, need_input) =
+let run_for_one dt u s (reg, astr, need_input) =
   (* move and adjust *)
   let u' = u |> move reg.R.a reg.R.e dt |> adjust reg.R.a in
 
@@ -438,6 +440,8 @@ let run_for_one dt u s (reg, need_input) =
     (* let res = Inv.decompose invleftovers in *)
     {reg with R.e = E.rm u ue} in
 
+  let rid = R.get_rid reg in
+
   (* remove corpses *)
   if Unit.is_alive u' then
   ( (* intel or input *)
@@ -445,21 +449,23 @@ let run_for_one dt u s (reg, need_input) =
     | (Lookaround _)::_ | [] ->
       ( (* add intelligence for units that are not directly controlled *)
         if Unit.get_controller u' = None then 
-          (updateu (u' |> intel s.geo reg s.pol ue), need_input)
+        ( let astr_upd = Org.Astr.update_from_unit u' rid astr in
+          let u'' = (u' |> intel s.geo reg s.pol ue) in
+          (updateu u'', Org.Astr.update_from_unit u'' rid astr_upd, need_input) )
         (* or wait for input *)
         else
-          (updateu u', u'::need_input)
+          (updateu u', Org.Astr.update_from_unit u' rid astr , u'::need_input)
       )
     | _ -> 
-      (updateu u', need_input)
+      (updateu u', Org.Astr.update_from_unit u' rid astr, need_input)
   )
   else 
-  (removeu u', need_input )
+  (removeu u', Org.Astr.remove_from_unit u' astr, need_input)
 
-let transfer_from reg pol controller_id geo =
-  E.fold (fun geo_acc u -> 
-    geo_acc |> Globalmove.unit_transfer u reg pol (Unit.get_controller u = Some controller_id)        
-  ) geo reg.R.e
+let transfer_from reg pol controller_id (geo, astr) =
+  E.fold (fun (geo_acc, astr_acc) u -> 
+    (geo_acc, astr_acc) |> Globalmove.unit_transfer u reg pol (Unit.get_controller u = Some controller_id)        
+  ) (geo, astr) reg.R.e
 
 
 (* main simulation function *)
@@ -480,42 +486,42 @@ let run dt s =
       let reg_list = gen_reg_list s.geo in
 
       (* simulate current + neighboring regions *)
-      let geo1, need_input = 
-        List.fold_left ( fun (acc_geo, acc_need_input) reg ->
+      let geo1, astr1, need_input = 
+        List.fold_left ( fun (acc_geo, acc_astr, acc_need_input) reg ->
           let rid = reg.R.rid in
 
           (* update projectiles *)
           let reg = Simobj.upd_projectiles def_dt reg in 
 
           (* update units *)
-          let upd_reg, upd_acc_need_input = 
+          let upd_reg, upd_astr, upd_acc_need_input = 
             E.fold 
-              ( fun (aa_reg, aa_need_input) u ->
+              ( fun ((aa_reg,_,_) as acc) u ->
                   (* get u from the accumulator *)
                   ( match E.id (u.Unit.id) aa_reg.R.e with
-                    | Some u -> run_for_one def_dt u s (aa_reg, aa_need_input)
-                    | None -> (aa_reg, aa_need_input)
+                    | Some u -> run_for_one def_dt u s acc
+                    | None -> acc
                   )
-              ) (reg, acc_need_input) reg.R.e in
+              ) (reg, acc_astr, acc_need_input) reg.R.e in
           
           (* update allocated movables *)
           acc_geo.G.rm.(rid) <- 
             { acc_geo.G.rm.(rid) with RM.alloc = R.decompose_nonplayer_only true upd_reg };
           
           (* return updated geo *)
-          (G.upd upd_reg acc_geo, upd_acc_need_input)
-        ) (s.geo, []) reg_list in
+          (G.upd upd_reg acc_geo, upd_astr, upd_acc_need_input)
+        ) (s.geo, s.astr, []) reg_list in
 
       (* transfer units *)
       let reg_list_1 = gen_reg_list geo1 in
-      let geo2 = 
-        List.fold_left (fun geoacc reg ->
-          transfer_from reg s.State.pol s.State.controller_id geoacc) geo1 reg_list_1 in
+      let geo2,astr2 = 
+        List.fold_left (fun geo_astr_acc reg ->
+          transfer_from reg s.State.pol s.State.controller_id geo_astr_acc) (geo1,astr1) reg_list_1 in
 
       if need_input = [] then
-        iterate (s.rem_dt +. dt -. def_dt) {s with geo = geo2; rem_dt = 0.0;}
+        iterate (s.rem_dt +. dt -. def_dt) {s with geo = geo2; astr = astr2; rem_dt = 0.0;}
       else
-        {s with rem_dt = s.rem_dt +. dt; geo = geo2; cm=CtrlM.WaitInput need_input}
+        {s with rem_dt = s.rem_dt +. dt; geo = geo2; astr = astr2; cm=CtrlM.WaitInput need_input}
     )
     else
       {s with rem_dt = s.rem_dt +. dt}

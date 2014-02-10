@@ -83,7 +83,7 @@ let maze a wall floor (x,y,dx,dy) =
   in
   repeat [(i0,j0)]
 
-let gen pol edges_func rid rm =
+let gen pol edges_func rid rm astr =
   let w = 25 in
   let h = 16 in
 
@@ -174,6 +174,22 @@ let gen pol edges_func rid rm =
   let upgrade rm sp = 
     Species.upgrade (1.0 -. 0.95 ** RM.get_difficulty rm) sp in
 
+  (* add actors *)
+  let ue_actors_added =
+    Org.Astr.fold_at rid 
+      ( fun e_acc a ->
+          let loc = find_walkable_location_a_e area e_acc in
+          if Tile.can_walk (Tile.classify (Area.get area loc)) then
+          ( let u = Org.Actor.make_unit a loc in
+            E.upd u e_acc 
+          )
+          else
+            e_acc
+      )
+      E.empty
+      astr
+  in
+
   (* generate units, spend some resources *)
   let ue, lat_mov_left = 
     fold_lim (fun (e_acc, mov_acc) i -> 
@@ -195,7 +211,7 @@ let gen pol edges_func rid rm =
       )
       else
         (e_acc, mov_acc)
-    ) (E.empty, rm.RM.lat) 0 (units_to_gen - 1) in
+    ) (ue_actors_added, rm.RM.lat) 0 (units_to_gen - 1) in
   
   (* randomly drop items, spend more resources *)
   let make_optinv res =

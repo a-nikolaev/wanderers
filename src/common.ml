@@ -178,7 +178,7 @@ module Unit = struct
         mass;
         radius = comp_radius mass;
         basedmg = 1.0; 
-        courage = 0.95;
+        courage = 0.85;
       }
     type t = {
       fac:faction; sp:Species.t;
@@ -299,6 +299,7 @@ module Unit = struct
       (uc.prop.mass +. uc.aux.mass_carry +. uc.aux.mass_wear +. uc.aux.mass_wield)
     let get_fm uc = uc.aux.fm
     let get_sp uc = uc.sp
+    let get_fac uc = uc.fac
  
     let get_hp uc = uc.hp
     
@@ -467,6 +468,8 @@ module Unit = struct
 
   let get_fnctqn u = u.fnctqn
 
+  let get_optaid u = u.optaid
+
   (* adjust aux field *)
   let adjust_aux_info u = {u with core = Core.adjust_aux_info u.core}
 
@@ -492,6 +495,10 @@ module Unit = struct
     let u = make fac sp controller loc in
     let updcore, rem_res = Core.make_res fac sp controller res in
     (adjust_aux_info {u with core = updcore}, rem_res)
+
+  let make_core core controller loc =
+    let u = make (Core.get_fac core) (Core.get_sp core) controller loc in
+    adjust_aux_info {u with core}
 
   let damage (strike, dirvec, dmgmult) u =
     (* strike ~ d momentum *)
@@ -748,6 +755,8 @@ module R = struct
     {mv with Mov.res=(Resource.add res_units res_ground)}
 
   let decompose = decompose_nonplayer_only false
+
+  let get_rid reg = reg.rid
 end
 
 (* Utilities *)
@@ -823,10 +832,10 @@ module Decision = struct
       let str1 = Unit.Core.approx_strength c1 in
       let str2 = Unit.Core.approx_strength c2 in
       if pol.Pol.rel_act.(c1.Unit.Core.fac).(c2.Unit.Core.fac) < 0. then 
-        ( if str1 > courage *. str2 then
+        ( if str1 *. courage > str2 then
             Kill
           else
-            Kill
+            Avoid
         )
       else 
         Ignore

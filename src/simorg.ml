@@ -8,7 +8,9 @@ let alternative_cores core item =
   let inv = core.Unit.Core.inv in
   let def_ci = 0 in
 
-  let mk c = {core with Unit.Core.inv = Inv.({inv with cnt = Item.M.add def_ci c inv.cnt})} in
+  let mk c = 
+    Unit.Core.adjust_aux_info
+    {core with Unit.Core.inv = Inv.({inv with cnt = Item.M.add def_ci c inv.cnt})} in
 
   match Inv.container def_ci inv with
   | Some cnt ->
@@ -110,9 +112,7 @@ let transfer_actor a nrid (g, astr) =
       (* Don't let it move into the simulated region *)
       (g, astr)
   | None ->
-      let a_upd = Actor.({a with rid = nrid}) in
-      (g, astr |> Astr.update a_upd)
-
+      (g, Astr.move_actor a nrid astr)
 
 (* Main adventurer simulation function *)
 let sim_adventurer pol a (g, astr) =
@@ -125,18 +125,21 @@ let sim_adventurer pol a (g, astr) =
   let nb_rid_ls = G.get_only_nb_rid_ls rid g in
   (* 3 *)
   let num_exits = List.length nb_rid_ls in
-  
+ 
+  let num_nothing = 4 in
+
   let rm = g.G.rm.(rid) in
 
   (* choose one event *)
-  let sum = (num_lat_pop + num_lat_actors + num_exits) in
+  let sum = (num_lat_pop + num_lat_actors + num_exits + num_nothing) in
   if sum > 0 then
   ( let fsum = float sum in
     
     let prob_ls = 
       [ 0, float num_lat_pop /. fsum; 
         1, float num_lat_actors /. fsum; 
-        2, float num_exits /. fsum; ] in
+        2, float num_exits /. fsum; 
+        3, float num_nothing /. fsum ] in
 
     let x = any_from_prob_ls prob_ls in
     match x with
@@ -206,29 +209,35 @@ let sim_adventurer pol a (g, astr) =
               )
           | _ -> (g, astr) 
         )
-    | _ ->
+    | 2 ->
         (* found an exit *)
         ( match any_from_ls nb_rid_ls with
           | Some nb_rid ->
               (g, astr) |> transfer_actor a nb_rid 
           | None ->
               (g, astr)
-        )    
-    | _ -> (g,astr)
+        )
+    | _ ->
+        (g, astr)
   )
   else
     (g, astr)
 
 
+let heal a =
+  Actor.update_core a (Unit.Core.heal 8.0 (Actor.get_core a))
 
 (* Dispatch *)  
 let sim_one pol a ga =
+  let a = heal a in
   match a.Actor.cl with
     _ -> sim_adventurer pol a ga
 
 
 let run accept_prob pol (geo, astr) = 
   let num = Astr.get_actors_num astr in
+
+  Printf.printf "actors: %i\n%!" num;
 
   let simnum = round_prob (float num *. accept_prob) in
 

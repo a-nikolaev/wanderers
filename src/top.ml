@@ -245,12 +245,12 @@ let economics speedup pol g facnum rid =
 
 let sim_actors speedup pol (g, astr) =
   (* add new actors *)
-  let n = round_prob speedup in
+  let n = round_prob (2.0 *. speedup) in
   let ga_upd = 
     fold_lim (fun ga i -> Org.Astr.add_new_actor pol ga) (g, astr) 1 n
   in
   (* simulate the existing ones *)
-  let accept_prob = 0.1 *. speedup in
+  let accept_prob = 0.3 *. speedup in
   Simorg.run accept_prob pol ga_upd 
 
 let run speedup pol (g, astr) =
