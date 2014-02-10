@@ -1,7 +1,7 @@
 
 ## Wanderers
 
-Open world roguelike. Currently, at an early development stage. 
+An open world roguelike. Currently, at a rather early development stage. 
 Nevertheless, many characteristic features of the game are already implemented, and it is playable.
 
 [![](http://i.imgur.com/S8syczzs.png)](http://i.imgur.com/S8syczz.png) 
