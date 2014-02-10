@@ -220,8 +220,8 @@ module Astr = struct
         let facnum = fnum g in
         let total_pop = fold_lim (fun sum i -> sum + fget g rid i) 0 0 (facnum-1) in
         let total_actors = get_actors_num_at rid astr in
-        if total_actors + total_pop > 0 && 
-          Random.int (total_actors + total_pop) < total_actors then
+        if total_actors + total_pop > 0 && total_pop > total_actors && 
+          Random.int (total_pop) > total_actors then
           (g, astr)
         else
         ( match get_random_unit_core pol (g.G.rm.(rid)) with

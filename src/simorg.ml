@@ -126,7 +126,7 @@ let sim_adventurer pol a (g, astr) =
   (* 3 *)
   let num_exits = List.length nb_rid_ls in
  
-  let num_nothing = 4 in
+  let num_nothing = 5 in
 
   let rm = g.G.rm.(rid) in
 
@@ -225,7 +225,7 @@ let sim_adventurer pol a (g, astr) =
 
 
 let heal a =
-  Actor.update_core a (Unit.Core.heal 8.0 (Actor.get_core a))
+  Actor.update_core a (Unit.Core.heal 20.0 (Actor.get_core a))
 
 (* Dispatch *)  
 let sim_one pol a ga =

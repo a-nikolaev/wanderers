@@ -106,24 +106,24 @@ module Species = struct
     | _ -> 1.0
 
   let xmass = function
-    | Cow, _ -> 5.0
-    | Horse, _ -> 4.0
+    | Cow, _ -> 3.0
+    | Horse, _ -> 2.5
     | Skeleton, _ -> 0.9
     | SkeletonWar, _ -> 1.5
     | ZombieHulk, _ -> 2.0
     | Wolf, _ -> 0.8
-    | Bear, _ -> 5.0
+    | Bear, _ -> 4.0
     | Troll, _ -> 1.8
     | _ -> 1.0
   
   let xathletic = function
-    | Cow, _ -> 3.0
-    | Horse, _ -> 4.0
+    | Cow, _ -> 2.0
+    | Horse, _ -> 2.0
     | Zombie, _ -> 1.2
     | ZombieHulk, _ -> 2.3
     | Skeleton, _ -> 0.9
     | SkeletonWar, _ -> 1.5
-    | Bear, _ -> 4.0
+    | Bear, _ -> 3.5
     | Troll, _ -> 2.2
     | _ -> 1.0
   
@@ -178,7 +178,7 @@ module Unit = struct
         mass;
         radius = comp_radius mass;
         basedmg = 1.0; 
-        courage = 0.85;
+        courage = 1.5;
       }
     type t = {
       fac:faction; sp:Species.t;

@@ -96,7 +96,7 @@ let growth speedup pol g facnum rid =
     (* production efficiency per person *)
     let argx = (1.1 +. 0.1 *. float (urbn + round_prob (sqrt(float agro)) )) in
     (* production - adjust to the difficulty level of the region *)
-    let argx = argx +. 0.05 *. get_difficulty g rid in
+    let argx = argx +. 0.065 *. get_difficulty g rid in
     (* consumption per person *)
     let argy = 1.0 in
     (* life cost per person *)
