@@ -154,6 +154,7 @@ module Unit = struct
       fm: float;
       melee: Item.Melee.t; ranged: Item.Ranged.t option; defense: float;
     }
+    type gender = Male | Female
     let comp_radius m = 0.45 *. (m /. 100.0)**(0.25)
     let rnd_prop () =
       (*
@@ -168,7 +169,7 @@ module Unit = struct
       let reaction = 0.5 +. 0.8 *. (1.0 -. smarts) in
       let mass = 50.0 +. 50.0 *. size in
 
-      let noize () = 0.05 *. (Random.float 1.0 -. 0.5) in
+      let noize () = 0.025 *. (Random.float 1.0 -. 0.5) in
       let athletic = athletic *. (1.0 +. noize()) in 
       let reaction = reaction *. (1.0 +. noize())in
       let mass = mass *. (1.0 +. noize()) in
@@ -181,7 +182,7 @@ module Unit = struct
         courage = 1.5;
       }
     type t = {
-      fac:faction; sp:Species.t;
+      fac:faction; sp:Species.t; gender: gender option;
       hp: float;
       controller: int option;
       prop: properties;
@@ -318,6 +319,8 @@ module Unit = struct
     
     let get_faction uc = uc.fac
     
+    let get_gender uc = uc.gender
+    
     let get_inv uc = uc.inv
   
     let is_alive uc = uc.hp > 0.0
@@ -357,6 +360,7 @@ module Unit = struct
         { fac; sp; prop; hp = prop.mass; controller = controller;
           inv = Inv.default;
           aux;
+          gender = match Random.int 2 with 0 -> Some Male | _ -> Some Female;
         } in
       adjust_aux_info uc
     
@@ -452,6 +456,7 @@ module Unit = struct
   let get_total_mass u = Core.get_total_mass u.core 
   let get_faction u = u.core.Core.fac
   let get_sp u = u.core.Core.sp
+  let get_gender u = Core.get_gender u.core
   let get_controller u = u.core.Core.controller
   
   let get_hp u = u.core.Core.hp
@@ -502,7 +507,7 @@ module Unit = struct
 
   let damage (strike, dirvec, dmgmult) u =
     (* strike ~ d momentum *)
-    let push = strike *. 20.0 /. get_total_mass u in
+    let push = strike *. 18.0 /. get_total_mass u in
 
     let core1 = Core.damage strike dmgmult u.core in
     let dmg = u.core.Core.hp -. core1.Core.hp in

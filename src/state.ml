@@ -22,6 +22,17 @@ module Clock = struct
   let get c = float c.full +. c.fraction
 end
 
+module Options = struct
+  type t = {game_speed: int}
+
+  let default = {game_speed = 0}
+
+  let speedup ({game_speed}) = {game_speed = min (game_speed + 1) 10}
+  let slowdown ({game_speed}) = {game_speed = max (game_speed - 1) (-10)}
+
+
+end
+
 type t =
   { cursor : loc;
     cm : CtrlM.t;
@@ -41,6 +52,8 @@ type t =
     atlas : Atlas.t;
 
     clock : Clock.t;
+
+    opts : Options.t;
 
     debug : bool
   }
@@ -138,6 +151,7 @@ let make w h debug =
     );
     atlas;
     clock = Clock.zero;
+    opts = Options.default;
     debug;
   }
 
@@ -154,6 +168,9 @@ module Msg = struct
     | DownStairs
     | ScrollForward
     | ScrollBackward
+
+    | OptsSpeedup
+    | OptsSlowdown
 end
 
 let respond s =
@@ -258,6 +275,8 @@ let respond s =
             meta_upd_zero_action utl true
               {u with Unit.ac = [Wait (u.Unit.loc,0.0)]; 
               Unit.fnctqn = Fencing.scroll_backward (Unit.get_fnctqn u)}
+        | Msg.OptsSpeedup -> {s with opts = Options.speedup s.opts}
+        | Msg.OptsSlowdown -> {s with opts = Options.slowdown s.opts}
         | _ -> s
       )
 

@@ -162,12 +162,21 @@ module Coll = struct
   let stdprice size = max 1 (int_of_float (2.0 *. (4.0 ** float size)))
 
   let cheap_price = 6
+    
+  let sw_weight_0 = 0.5 
+  let sw_weight_4 = 1.6 
+  let sw_weight_power = 1.9
+  let sw_weight_a, sw_weight_b = 
+    sw_weight_0,
+    (sw_weight_4 -. sw_weight_0) /. (4.0**sw_weight_power)
 
   let random opt_kind =
     let kind = match opt_kind with None -> Random.int 7 | Some x -> x in
     let melee x d =
-      `Melee Melee.({attrate=x+.1.0; duration = (2.0 -. 1.0/.(x+.1.0) +. 0.1 *. x) *. d;}) in
-    let sword_weight s = 0.5 +. 0.09375 *. (s*.s) in
+      `Melee Melee.({attrate=1.0 *. (x+.1.0); duration = (2.0 -. 1.0/.(x+.1.0) +. 0.1 *. x) *. d;}) in
+
+
+    let sword_weight s = sw_weight_a +. sw_weight_b *. (s**sw_weight_power) in
     match kind with
       0 -> (* sword *)
         (* knife, dagger, short sword, broad sword, long sword (first two-handed), great sword, x, y*)

@@ -53,6 +53,8 @@ let process_key_pressed k = function
               | '>' -> g Msg.DownStairs
               | ',' -> g Msg.ScrollBackward
               | '.' -> g Msg.ScrollForward
+              | '+' -> g Msg.OptsSpeedup
+              | '-' -> g Msg.OptsSlowdown
               | _ -> State.Play s
             )
             else
@@ -76,7 +78,9 @@ let rec main_loop mode_state prev_ticks =
     );
   let mode_state' = match mode_state with
   | State.Play s ->
-      State.Play (Sim.run ( 0.0105 *. float (ticks - prev_ticks)) s) 
+      let speed = s.State.opts.State.Options.game_speed in
+      let speedup = 1.07 ** float speed in
+      State.Play (Sim.run ( 0.0105 *. float (ticks - prev_ticks) *. speedup) s) 
   | ms -> ms
   in
 

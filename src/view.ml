@@ -20,9 +20,9 @@ let species_img = function
     Species.Hum, i -> (2.0 +. float i, 5.0)
   | Species.Cow, _ -> (9.0, 6.0)
   | Species.Horse, _ -> (10.0, 6.0)
-  | Species.Wolf, _ -> (0.0, 6.0)
-  | Species.Bear, _ -> (1.0, 6.0)
-  | Species.Troll, _ -> (2.0, 6.0)
+  | Species.Wolf, _ -> (0.0, 7.0)
+  | Species.Bear, _ -> (1.0, 7.0)
+  | Species.Troll, _ -> (2.0, 7.0)
   | Species.Skeleton, _ -> (9.0, 5.0) 
   | Species.Zombie, _ -> (10.0, 5.0) 
   | Species.SkeletonWar, _ -> (11.0, 5.0) 
@@ -407,8 +407,8 @@ let draw_state t s =
 
           let species = Unit.get_sp u in 
           let img = species_img (species) ++. 
-            ( match species with
-              | Species.Hum, _ when u.Unit.id mod 2 = 0 -> (-2.,4.)
+            ( match species, Unit.get_gender u with
+              | (Species.Hum, _), Some Unit.Core.Female -> (0.,1.)
               | _ -> (0., 0.)
             ) in
 
@@ -432,7 +432,12 @@ let draw_state t s =
         else
         ( (* human-controlled unit *) 
           glColor4f 1.0 1.0 1.0 1.0; 
-          Draw.draw_bb_vec (0.0, 5.0) (u.Unit.pos);
+          let img = (0.0, 5.0) ++. 
+            ( match Unit.get_sp u, Unit.get_gender u with
+              | (Species.Hum, _), Some Unit.Core.Female -> (0.,1.)
+              | _ -> (0., 0.)
+            ) in
+          Draw.draw_bb_vec img (u.Unit.pos);
          
           (*
           Draw.put_string Unit.( Printf.sprintf "m=%.0f, re=%.1f, ath=%.1f" 
@@ -500,7 +505,7 @@ let draw_state t s =
               let loc' = u.Unit.loc ++ tgt.Fencing.dloc in
               if Area.is_within s.State.vision loc' && Area.get s.State.vision (loc') > 0 then
               ( (* Draw.draw_bb (4.0 +. j, 6.0) (loc');*)
-                Draw.draw_bb (4.0 +. j_x, 6.0) (loc') )
+                Draw.draw_bb (4.0 +. j_x, 9.0) (loc') )
             ) tgtls
 
       | _ -> ()
@@ -522,9 +527,10 @@ let draw_state t s =
   glColor4f 1.0 1.0 1.0 1.0;
   if s.State.debug then
   (  (* draw auxiliary interface *)
-    Draw.put_string Unit.(Printf.sprintf "top_rem_dt=%.0f" s.State.top_rem_dt) (10,0);
+    Draw.put_string Unit.(Printf.sprintf "top_rem_dt: %.0f" s.State.top_rem_dt) (10,-1);
   );
-  Draw.put_string Unit.(Printf.sprintf "clock=%.0f" (State.Clock.get s.State.clock)) (25,0); 
+  Draw.put_string Unit.(Printf.sprintf "clock: %.0f" (State.Clock.get s.State.clock)) (25,0); 
+  Draw.put_string Unit.(Printf.sprintf "speed[+-]:%+i" (s.State.opts.State.Options.game_speed)) (10,0); 
 
   if s.State.debug then
     draw_geo s.State.geo s.State.pol
