@@ -156,16 +156,29 @@ module Unit = struct
     }
     type gender = Male | Female
     let comp_radius m = 0.45 *. (m /. 100.0)**(0.25)
-    let rnd_prop () =
+
+    let comp_size g = 
+      let s = match g with
+      | Some Male -> (Prob.lognormal 4.29 0.163 -. 50.0) /. 50.0 
+      | Some Female -> (Prob.lognormal 4.10 0.168 -. 50.0) /. 50.0 
+      | None -> (Prob.lognormal 4.20 0.166 -. 50.0) /. 50.0 in
+      max (-0.2) (min s 2.0)
+
+    let rnd_prop gender =
       (*
       { reaction = 0.5 +. Random.float 0.8; 
         mass = 50.0 +. Random.float 50.0;
         athletic = 8.0 +. Random.float 8.0 }
       *)
-      let size = Random.float 1.0 in
+      (*let size = Random.float 1.0 in *)
+      let size = (Prob.lognormal 4.25 0.163 -. 50.0) /. 50.0 in
       let smarts = (1.0 -. size) in
 
+      (*
       let athletic = 8.5 +. 7.5 *. sqrt size in
+      *)
+      let athletic = 5.5*.log(size+.0.4) +. 14.5 in
+
       let reaction = 0.5 +. 0.8 *. (1.0 -. smarts) in
       let mass = 50.0 +. 50.0 *. size in
 
@@ -173,6 +186,8 @@ module Unit = struct
       let athletic = athletic *. (1.0 +. noize()) in 
       let reaction = reaction *. (1.0 +. noize())in
       let mass = mass *. (1.0 +. noize()) in
+      
+      (* Printf.printf "[%g, m=%g] \n%!" size mass; *)
 
       { athletic;
         reaction;
@@ -337,7 +352,12 @@ module Unit = struct
     let heal dhp uc = {uc with hp = min (uc.hp +. dhp) uc.prop.mass}
 
     let make fac sp controller =
-      let {reaction; mass; radius; athletic; basedmg; courage} = rnd_prop() in
+      let gender = 
+        match sp with 
+          Species.Hum, _ -> (match Random.int 2 with 0 -> Some Male | _ -> Some Female)
+        | _ -> None
+      in
+      let {reaction; mass; radius; athletic; basedmg; courage} = rnd_prop gender in
       let prop = 
         {
         reaction = reaction *. Species.xreaction sp; 
@@ -360,7 +380,7 @@ module Unit = struct
         { fac; sp; prop; hp = prop.mass; controller = controller;
           inv = Inv.default;
           aux;
-          gender = match Random.int 2 with 0 -> Some Male | _ -> Some Female;
+          gender;
         } in
       adjust_aux_info uc
     

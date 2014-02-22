@@ -24,6 +24,7 @@ endif
 
 CC=gcc
 SOURCES=$(WIN_SOURCE) $(SDL_SOURCE) $(GL_SOURCE) \
+  $(SRCDIR)/prob.ml \
   $(SRCDIR)/base.ml \
   $(SRCDIR)/fencing.ml \
   $(SRCDIR)/item.ml \
