@@ -216,7 +216,13 @@ let draw_target_cursor t ij =
 let draw_item t ij obj =
   let x = obj.Item.imgindex in
   let img = (float (9 + x mod 8), float(9 + x / 8)) in
-  Draw.draw_bb img ij
+  match Item.get_mat obj with
+    Some Item.DmSteel ->
+      glColor4f (0.78) (0.78) (0.83) 1.0;
+      Draw.draw_bb img ij;
+      glColor4f 1.0 1.0 1.0 1.0
+  | _ ->
+      Draw.draw_bb img ij
 
 let draw_container t (i,j) (w,h) c = 
   for ii=0 to w-1 do

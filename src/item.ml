@@ -1,7 +1,7 @@
 
 open Base
 
-type mat = Wood | Bronze | Iron | Steel | Damascus_Steel | Paper
+type mat = Leather | Wood | Steel | DmSteel 
 
 type eff = [ `Heal ]
 
@@ -24,10 +24,36 @@ end
 type prop = [ `Melee of Melee.t | `Defense of float | `Weight of float | `Material of mat 
   | `Consumable of eff | `Wearable | `Wieldable | `Quality of qm | `Ranged of Ranged.t]
 
+let upgrade_prop (m0,m1) prop =
+  match m1 with
+  | DmSteel -> 
+      ( let c = 1.4 in
+        match prop with
+        | `Weight x -> `Weight (x *. 0.85)
+        | `Defense x -> `Defense (x *. c)
+        | `Melee {Melee.attrate=att; Melee.duration=dur} -> 
+            `Melee Melee.({attrate = att *. c; duration = dur})
+        | `Ranged {Ranged.force=frc; Ranged.projmass=m; Ranged.dmgmult=dmg} -> 
+            `Ranged Ranged.({force = frc; projmass = m; dmgmult = dmg *. c})
+        | `Material _ -> `Material m1
+        | x -> x
+      )
+  | _ -> prop
+
 module PS = Set.Make(struct type t = prop let compare = compare end)
 type t = { name: string; prop: PS.t; imgindex:int; price: int; }
 
 type item_type = t
+
+let upgrade_item (m0,m1) item =
+  let prop_u = 
+    PS.fold (fun p acc -> PS.add (upgrade_prop (m0,m1) p) acc) item.prop PS.empty
+  in
+  let price_u = match m1 with 
+    | DmSteel -> item.price * 8
+    | x -> item.price in
+  {item with prop = prop_u; price = price_u}
+
 
 (* item obj has property p*)
 let is p obj = PS.mem p obj.prop
@@ -53,6 +79,13 @@ let get_ranged obj =
       | _ -> acc
     ) obj.prop None
 
+let get_mat obj =
+  PS.fold (fun prop acc -> 
+      match prop with
+        `Material x -> Some x 
+      | _ -> acc
+    ) obj.prop None
+
 let get_mass obj = 
   PS.fold (fun prop acc -> 
       match prop with
@@ -62,6 +95,8 @@ let get_mass obj =
 
 let is_wearable obj = PS.mem `Wearable obj.prop
 let is_wieldable obj = PS.mem `Wieldable obj.prop
+
+
 
 (* integer map *)
 module M = Map.Make(struct type t = int let compare = compare end)
@@ -171,6 +206,15 @@ end
 (* Collection of objects *)
 module Coll = struct
 
+  let upgrade_mat = function
+    | Steel -> DmSteel
+    | x -> x
+  let rec prob_upgrade_mat p mat =
+    let mat_upd = upgrade_mat mat in
+    if Random.float 1.0 < p then
+      (if mat_upd <> mat then prob_upgrade_mat p mat_upd else mat_upd)
+    else mat
+
   let index kind size = kind * 8 + size
   let stdprice size = max 1 (int_of_float (2.0 *. (4.0 ** float size)))
 
@@ -183,11 +227,10 @@ module Coll = struct
     sw_weight_0,
     (sw_weight_4 -. sw_weight_0) /. (4.0**sw_weight_power)
 
-  let random opt_kind =
+  let simple_random opt_kind =
     let kind = match opt_kind with None -> Random.int 7 | Some x -> x in
     let melee x d =
       `Melee Melee.({attrate=1.0 *. (x+.1.0); duration = (2.0 -. 1.0/.(x+.1.0) +. 0.1 *. x) *. d;}) in
-
 
     let sword_weight s = sw_weight_a +. sw_weight_b *. (s**sw_weight_power) in
     match kind with
@@ -199,30 +242,36 @@ module Coll = struct
         (* 2kg for a long (two-handed sword) *)
         (* let weight = 0.5 +. 1.5 *. 0.25 *. 0.25 *. (s*.s) in *)
         let weight = sword_weight s in
+        let mat = Steel in 
         let prop = PS.empty 
           |> PS.add (melee s 1.0) 
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wieldable in
+          |> PS.add `Wieldable
+          |> PS.add (`Material mat) in
         {name = "Sword-"^(string_of_int size); prop; imgindex = index kind size; price}
     | 1 -> (* rogue sword / sabre *)
         let size = Random.int 8 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.15 in
+        let mat = Steel in 
         let prop = PS.empty 
           |> PS.add (melee (s *. 1.1) 1.0) 
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wieldable in
+          |> PS.add `Wieldable 
+          |> PS.add (`Material mat) in
         {name = "Swo:rd-"^(string_of_int size); prop; imgindex = index kind size; price}
     | 2 -> (* armor *)
         let size = 1 + Random.int 5 in
         let price = stdprice size in 
         let s = float size in
         let weight = (sword_weight s) *. 6.0 in
+        let mat = if size < 2 then Leather else Steel in 
         let prop = PS.empty 
           |> PS.add (`Defense (0.05 +. 0.12 *. float size))
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wearable in
+          |> PS.add `Wearable
+          |> PS.add (`Material mat) in
         let name = match size with 0 -> "Leather Armor" | 1 -> "Chain mail" | 2 -> "Plated mail" | 3 -> "Laminar armor" | _ -> "Plate armor" in
         {name; prop; imgindex = index kind size; price}
     | 3 -> (* blunt weapons *)
@@ -230,31 +279,37 @@ module Coll = struct
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.2 in
+        let mat = if size < 2 then Wood else Steel in 
         let prop = PS.empty 
           |> PS.add (melee (s*.1.25) 1.2)
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wieldable in
+          |> PS.add `Wieldable 
+          |> PS.add (`Material mat) in
         {name = "Mace-"^(string_of_int size); prop; imgindex = index kind size; price}
     | 4 -> (* axe *)
         let size = 1 + Random.int 7 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.3 in
+        let mat = Steel in 
         let prop = PS.empty
           |> PS.add (melee (s*.1.35) 1.3)
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wieldable in
+          |> PS.add `Wieldable 
+          |> PS.add (`Material mat) in
         {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price}
     | 5 -> (* shield *)
         let size = 0 + Random.int 8 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.1 in
+        let mat = Steel in 
         let dd = if size > 1 then 0.05 else 0.0 in
         let prop = PS.empty
           |> PS.add (`Defense (0.08 +. 0.06 *. float size +. dd))
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wieldable in
+          |> PS.add `Wieldable 
+          |> PS.add (`Material mat) in
         let prop = match size with
           | 0 -> PS.add (melee (s*.0.5) 1.5) prop 
           | 1 -> PS.add (melee (s*.0.25) 1.5) prop 
@@ -267,12 +322,26 @@ module Coll = struct
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) in
+        let mat = if size < 1 then Leather else Wood in 
         let prop = PS.empty
           |> PS.add (`Ranged Ranged.(
             {force = 0.85 *. (2.0 +. 0.9 *. x); projmass = 0.13 *. (5.0 +. 2.2 *. x); dmgmult = 1.5 *. ( 2.5 +. 0.2 *. x )}))
           |> PS.add (`Weight (weight)) 
-          |> PS.add `Wieldable in
+          |> PS.add `Wieldable 
+          |> PS.add (`Material mat) in
         {name = "Ranged-"^(string_of_int size); prop; imgindex = index kind size; price}
+  
+  let random opt_kind =
+    let item = simple_random opt_kind in
+    match get_mat item with
+      Some mat ->
+        let mat_u = prob_upgrade_mat 0.1 mat in
+        if mat_u <> mat then
+          upgrade_item (mat,mat_u) item
+        else
+          item
+    | None -> item
+
 end
 
 let decompose obj = Resource.make (obj.price)
