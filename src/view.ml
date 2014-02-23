@@ -437,6 +437,8 @@ let draw_state t s =
               | (Species.Hum, _), Some Unit.Core.Female -> (0.,1.)
               | _ -> (0., 0.)
             ) in
+          if s.State.debug then
+            Draw.draw_bb (10.0, 17.0) (u.Unit.loc);
           Draw.draw_bb_vec img (u.Unit.pos);
          
           (*
@@ -532,12 +534,12 @@ let draw_state t s =
   Draw.put_string Unit.(Printf.sprintf "clock: %.0f" (State.Clock.get s.State.clock)) (25,0); 
   Draw.put_string Unit.(Printf.sprintf "speed[+-]:%+i" (s.State.opts.State.Options.game_speed)) (10,0); 
 
-  if s.State.debug then
+  if s.State.debug && false then
     draw_geo s.State.geo s.State.pol
   else
     draw_atlas s.State.atlas;
 
-  if s.State.debug then
+  if s.State.debug && false then
   ( (* factions images *)
     let output num pos =
       Draw.put_string Unit.(Printf.sprintf "%i" num) pos in

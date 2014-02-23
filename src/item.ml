@@ -153,6 +153,19 @@ module Cnt = struct
   let remove_everything c = 
     {c with item = M.empty}
 
+  exception Compacting_failure
+
+  (* move the items to the beginning of the list when possible *)
+  let compact c = 
+    try
+      M.fold (fun si obj acc -> 
+        match put obj acc with 
+        | Some acc_upd -> acc_upd
+        | None -> raise Compacting_failure
+      ) c.item (remove_everything c)
+    with
+      Compacting_failure -> c
+
 end
 
 (* Collection of objects *)

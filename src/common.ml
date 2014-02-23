@@ -351,6 +351,8 @@ module Unit = struct
   
     let heal dhp uc = {uc with hp = min (uc.hp +. dhp) uc.prop.mass}
 
+    let upd_inv inv uc = adjust_aux_info {uc with inv}
+
     let make fac sp controller =
       let gender = 
         match sp with 
@@ -497,6 +499,10 @@ module Unit = struct
 
   (* adjust aux field *)
   let adjust_aux_info u = {u with core = Core.adjust_aux_info u.core}
+  
+  let get_inv u = Core.get_inv u.core
+
+  let upd_inv inv u = {u with core = Core.upd_inv inv u.core}
 
   let create_maker () =
     let id0 = ref 0 in

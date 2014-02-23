@@ -302,7 +302,7 @@ let respond s =
       in
       (* helper *)
       let just_update_unit_inv upd_uinv =
-        let upd_u = Unit.adjust_aux_info {u with Unit.core = {u.Unit.core with Unit.Core.inv = upd_uinv}} in
+        let upd_u = Unit.upd_inv upd_uinv u in
         let nue = E.upd upd_u reg.R.e in
         { s with geo = G.upd {reg with R.e=nue} s.geo;
             cm = CtrlM.Inventory (invclass, ic, ii, upd_u, utl); }
@@ -362,7 +362,16 @@ let respond s =
         | Msg.Num 2 when invclass = CtrlM.InvUnit && ic <> 1 ->
             move (ic,ii) 1
         | Msg.Cancel ->
-            upd_one (E.upd {u with Unit.ac = [Wait (u.Unit.loc, 0.0)]} reg.R.e) 
+            (* compact the items on the ground *)
+            ( match Area.get reg.R.optinv u.Unit.loc with
+                Some inv -> 
+                  let optinv_upd = Some (Inv.compact (fun _ _ -> true) inv) in
+                  Area.set reg.R.optinv u.Unit.loc optinv_upd
+              | _ -> () );
+            (* compact unit's inventory *)
+            let inv_upd = Inv.compact_simple (Unit.get_inv u) in
+            let u_upd = Unit.upd_inv inv_upd u in
+            upd_one (E.upd {u_upd with Unit.ac = [Wait (u.Unit.loc, 0.0)]} reg.R.e) 
         | _ -> s
       )
 

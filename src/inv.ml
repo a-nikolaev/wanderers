@@ -79,6 +79,21 @@ let animal =
 let ground =
   {cnt = map_of_list [(0, Cnt.empty_unlimited)]; limit = 1}
 
+(* compact containers satisfying condition *)
+let compact condition inv =
+  let cnt_upd = 
+    M.fold 
+      ( fun ci c acc -> 
+          let c_upd = if condition ci c then Item.Cnt.compact c else c in
+          M.add ci c_upd acc
+      )
+      inv.cnt
+      M.empty
+  in
+  {inv with cnt = cnt_upd}
+
+let compact_simple inv = compact (fun x _ -> x <> 0) inv
+
 (* function for optional ground inventories *)
 let ground_drop obj optinv =
   let inv = 

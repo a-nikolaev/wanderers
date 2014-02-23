@@ -15,7 +15,11 @@ set terminal postscript eps enhanced color lw 1.8 size 10cm, 10cm # width, heigh
 set multiplot layout 1,1
 
 set xrange [-0.2:1.2]
+set ytics 10.0
 set yrange [0:*]
+
+set xlabel "size"
+set ylabel "mass, athletics*5.5"
 
 f(x) = 5.5*log(x+0.4) + 14.5
 
