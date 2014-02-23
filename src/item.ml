@@ -29,7 +29,7 @@ let upgrade_prop (m0,m1) prop =
   | DmSteel -> 
       ( let c = 1.4 in
         match prop with
-        | `Weight x -> `Weight (x *. 0.85)
+        | `Weight x -> `Weight (x *. 0.90)
         | `Defense x -> `Defense (x *. c)
         | `Melee {Melee.attrate=att; Melee.duration=dur} -> 
             `Melee Melee.({attrate = att *. c; duration = dur})
