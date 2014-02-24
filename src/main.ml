@@ -85,12 +85,14 @@ let rec main_loop mode_state prev_ticks =
   draw_gl_scene 
     ( fun () -> 
         ( match mode_state with
-          |  State.Play s -> draw_state ticks s
+          |  State.Play s -> 
+              draw_state ticks s;
+              (* FPS *)
+              if s.State.debug then
+              ( let fps = 1000.0 /. float (ticks - prev_ticks) in
+                glColor4f 1.0 1.0 1.0 1.0; 
+                Grafx.Draw.put_string (sprintf "FPS: %.0f" fps) (0,0); )
           | _ -> () );
-        (* FPS *)
-        let fps = 1000.0 /. float (ticks - prev_ticks) in
-        glColor4f 1.0 1.0 1.0 1.0; 
-        Grafx.Draw.put_string (sprintf "FPS: %.0f" fps) (0,0);
     );
   let mode_state' = match mode_state with
   | State.Play s ->

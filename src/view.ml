@@ -234,7 +234,7 @@ let draw_item t ij obj =
   let img = (float (9 + x mod 8), float(9 + x / 8)) in
   match Item.get_mat obj with
     Some Item.DmSteel ->
-      glColor4f (0.78) (0.78) (0.83) 1.0;
+      glColor4f (0.78) (0.78) (0.86) 1.0;
       Draw.draw_bb img ij;
       glColor4f 1.0 1.0 1.0 1.0
   | _ ->
