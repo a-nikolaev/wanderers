@@ -378,7 +378,7 @@ let draw_area t reg rm vision =
 
 (* Notification *)
 let draw_ntfy time u = 
-  List.iteri (fun i (ev,t) -> 
+  List.iter (fun (ev,t) -> 
     match ev with
     | Unit.NtfyDamage x -> 
       ( let crit = 
