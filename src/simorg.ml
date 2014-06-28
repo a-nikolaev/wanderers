@@ -70,6 +70,56 @@ let try_item_eval eval_better core item =
     ) 
     (core,[item]) alt_ls
 
+let compute_core_value core = 
+  let v = core |> Unit.Core.decompose |> Resource.numeric |> float in 
+  let fm = Unit.Core.get_fm core in
+  v**4.0 *. fm
+
+let try_to_keep_an_item eval_better (core, value) item =
+  match Inv.put_somewhere item (Unit.Core.get_inv core) with
+  | Some inv_alt ->
+      let core_alt = 
+        Unit.Core.adjust_aux_info {core with Unit.Core.inv = inv_alt} in
+      if eval_better core core_alt then 
+        None
+      else
+      ( let value_alt = compute_core_value core_alt in
+        if value_alt > value then
+          Some (core_alt, value_alt)
+        else
+          None
+      )
+  | None -> None
+
+(* returns ((core,value),leftovers) *)
+let keep_precious_items core_value itemls =
+  let upd (cv,ls) item = 
+    match try_to_keep_an_item eval_slow cv item with
+      Some cv_alt -> true, (cv_alt, ls)
+    | None -> false, (cv, item::ls)
+  in
+  let rec next (cv0,ls0) (cvb,lsb) = function
+    | item::tl ->
+        let cvls_zero = cv0, item::ls0 in
+        ( match upd (cv0,ls0) item, upd (cvb,lsb) item with
+          | (true, (((_,v0u),_) as cvls0u)), (true, (((_,vbu),_) as cvlsbu)) ->
+              let best = if v0u > vbu then cvls0u else cvlsbu in
+              next cvls_zero best tl
+          | (false,_), (true,cvlsbu) ->
+              next cvls_zero cvlsbu tl
+          | (true, (((_,v0u),_) as cvls0u)), (false,_) ->
+              let _,vb = cvb in
+              let best = if v0u > vb then cvls0u else (cvb, item::lsb) in
+              next cvls_zero best tl
+          | _ -> 
+              next cvls_zero (cvb, item::lsb) tl
+        )
+    | [] -> (cvb,lsb)
+  in
+  let cvls = core_value,[] in
+  next cvls cvls itemls
+
+
 let will_we_fight pol core1 core2 =
   let dec1 = Decision.C.get_intention pol core1 core2 in
   let dec2 = Decision.C.get_intention pol core2 core1 in
@@ -109,7 +159,7 @@ let update_rid_core_g_astr rid core (g, astr) =
     (g, astr)
 
 (* try to use the items of the defeated opponent *)
-let digest_core my_core opp_core = 
+let digest_core_no_valuables my_core opp_core = 
   let items_ls = Unit.Core.items_ls opp_core in
   let my_core', leftovers =  
     List.fold_left (fun (acc_core, acc_leftovers) item -> 
@@ -121,6 +171,17 @@ let digest_core my_core opp_core =
     {opp_core with Unit.Core.inv = Inv.remove_everything (Unit.Core.get_inv opp_core)},
     leftovers )
 
+(* take both, better weapons and precious items  *)
+let digest_core my_core opp_core = 
+  let (my_core_upd, opp_core_upd, leftovers) = digest_core_no_valuables my_core opp_core in
+  let my_value_upd = compute_core_value my_core_upd in
+
+  let (my_core_upd2, my_value_upd2), leftovers_upd2 = keep_precious_items (my_core_upd, my_value_upd) leftovers in
+  
+  (my_core_upd2, opp_core_upd, leftovers_upd2)
+
+
+
 (* transfer the actor *)
 let transfer_actor a nrid (g, astr) =
   match Prio.get nrid g.G.prio with
@@ -130,114 +191,134 @@ let transfer_actor a nrid (g, astr) =
   | None ->
       (g, Astr.move_actor a nrid astr)
 
-(* Main adventurer simulation function *)
-let sim_adventurer pol a (g, astr) =
+(* Scenario - meet a local inhabbitant *)
+let scenario_meet_a_local pol a opp_core (g,astr) =
   let rid = Actor.get_rid a in
-  let facnum = fnum g in
-  (* 1 *)
-  let num_lat_pop = fold_lim (fun acc fac -> acc + fget_lat g rid fac) 0 0 (facnum-1) in
-  (* 2 *)
-  let num_lat_actors = Astr.get_actors_num_at rid astr in
-  let nb_rid_ls = G.get_only_nb_rid_ls rid g in
-  (* 3 *)
-  let num_exits = List.length nb_rid_ls in
+  let my_core = Actor.get_core a in
+  if will_we_fight pol my_core opp_core then
+    let (my_core_upd, opp_core_upd) = fake_fight my_core opp_core in
+
+    (* take the resources from the rm *)
+    let opp_res = Unit.Core.decompose opp_core in
+    let lat_res = rget_lat g rid in 
+    rset_lat g rid (Resource.subtract lat_res opp_res); 
  
-  let num_nothing = 5 in
-
-  let rm = g.G.rm.(rid) in
-
-  (* choose one event *)
-  let sum = (num_lat_pop + num_lat_actors + num_exits + num_nothing) in
-  if sum > 0 then
-  ( let fsum = float sum in
+    let my_core_upd2, opp_core_upd2, leftovers_to_dissolve =
+      if Unit.Core.is_alive my_core_upd && not (Unit.Core.is_alive opp_core_upd) then 
+        digest_core my_core_upd opp_core_upd
+      else
+        (my_core_upd, opp_core_upd, [])
+    in
     
-    let prob_ls = 
-      [ 0, float num_lat_pop /. fsum; 
-        1, float num_lat_actors /. fsum; 
-        2, float num_exits /. fsum; 
-        3, float num_nothing /. fsum ] in
+    let res_to_dissolve = List.fold_left 
+      (fun res item -> Resource.add res (Item.decompose item)) 
+      Resource.zero leftovers_to_dissolve in
 
-    let x = any_from_prob_ls prob_ls in
-    match x with
-    | 0 ->
-        (* encounter a local inhabitant *)
-        ( match get_random_unit_core pol rm with
-          | Some (opp_core, _) ->
-            ( let my_core = Actor.get_core a in
-              if will_we_fight pol my_core opp_core then
-                let (my_core_upd, opp_core_upd) = fake_fight my_core opp_core in
-   
-                (* take the resources from the rm *)
-                let opp_res = Unit.Core.decompose opp_core in
-                let lat_res = rget_lat g rid in 
-                rset_lat g rid (Resource.subtract lat_res opp_res); 
-             
-                let my_core_upd2, opp_core_upd2, leftovers_to_dissolve =
-                  if Unit.Core.is_alive my_core_upd && not (Unit.Core.is_alive opp_core_upd) then 
-                    digest_core my_core_upd opp_core_upd
-                  else
-                    (my_core_upd, opp_core_upd, [])
-                in
-                
-                let res_to_dissolve = List.fold_left 
-                  (fun res item -> Resource.add res (Item.decompose item)) 
-                  Resource.zero leftovers_to_dissolve in
+    dissolve_lat_res g rid res_to_dissolve;
 
-                dissolve_lat_res g rid res_to_dissolve;
-
-                (g, astr) 
-                |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
-                |> update_rid_core_g_astr rid opp_core_upd2
-              else
-                (g, astr)
-            )
-          | None -> (g, astr)
-        )
-    | 1 ->
-        (* encounter an actor (active NPC) *)
-        ( match  Astr.get_random_from rid astr with
-          | Some opp_actor when Actor.get_aid opp_actor <> Actor.get_aid a ->
-              let my_core = Actor.get_core a in
-              let opp_core = Actor.get_core opp_actor in
-              ( if will_we_fight pol my_core opp_core then
-                  let (my_core_upd, opp_core_upd) = fake_fight my_core opp_core in
-                 
-                  let my_core_upd2, opp_core_upd2, leftovers_to_dissolve = 
-                    if Unit.Core.is_alive my_core_upd && not (Unit.Core.is_alive opp_core_upd) then 
-                      digest_core my_core_upd opp_core_upd
-                    else if not (Unit.Core.is_alive my_core_upd) && (Unit.Core.is_alive opp_core_upd) then 
-                      ( let x,y,z = digest_core opp_core_upd my_core_upd in (y,x,z) )
-                    else
-                      (my_core_upd, opp_core_upd, [])
-                  in
-                
-                  let res_to_dissolve = List.fold_left 
-                    (fun res item -> Resource.add res (Item.decompose item)) 
-                    Resource.zero leftovers_to_dissolve in
-
-                  dissolve_lat_res g rid res_to_dissolve;
-
-                  (g, astr) 
-                  |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
-                  |> update_rid_actor_g_astr rid (Actor.update_core opp_actor opp_core_upd2)
-                else
-                  (g, astr)
-              )
-          | _ -> (g, astr) 
-        )
-    | 2 ->
-        (* found an exit *)
-        ( match any_from_ls nb_rid_ls with
-          | Some nb_rid ->
-              (g, astr) |> transfer_actor a nb_rid 
-          | None ->
-              (g, astr)
-        )
-    | _ ->
-        (g, astr)
-  )
+    (g, astr) 
+    |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
+    |> update_rid_core_g_astr rid opp_core_upd2
   else
     (g, astr)
+
+(* Scenario - meet another actor *)
+let scenario_meet_an_actor pol a opp_actor (g,astr) =
+  let rid = Actor.get_rid a in
+  let my_core = Actor.get_core a in
+  let opp_core = Actor.get_core opp_actor in
+  if will_we_fight pol my_core opp_core then
+    let (my_core_upd, opp_core_upd) = fake_fight my_core opp_core in
+   
+    let my_core_upd2, opp_core_upd2, leftovers_to_dissolve = 
+      if Unit.Core.is_alive my_core_upd && not (Unit.Core.is_alive opp_core_upd) then 
+        digest_core my_core_upd opp_core_upd
+      else if not (Unit.Core.is_alive my_core_upd) && (Unit.Core.is_alive opp_core_upd) then 
+        ( let x,y,z = digest_core opp_core_upd my_core_upd in (y,x,z) )
+      else
+        (my_core_upd, opp_core_upd, [])
+    in
+  
+    let res_to_dissolve = List.fold_left 
+      (fun res item -> Resource.add res (Item.decompose item)) 
+      Resource.zero leftovers_to_dissolve in
+
+    dissolve_lat_res g rid res_to_dissolve;
+
+    (g, astr) 
+    |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
+    |> update_rid_actor_g_astr rid (Actor.update_core opp_actor opp_core_upd2)
+  else
+    (g, astr)
+ 
+type encounter = Enc_Local | Enc_Actor | Enc_Exit | Enc_Nothing
+
+(* Sample an encounter for the actor a *)
+let sample_encounter a (g,astr) (x_lat, x_act, x_exit, x_nothing) =
+  let rid = Actor.get_rid a in
+  let facnum = fnum g in
+  (* 0 *)
+  let num_lat_pop = fold_lim (fun acc fac -> acc + fget_lat g rid fac) 0 0 (facnum-1) in
+  (* 1 *)
+  let num_lat_actors = Astr.get_actors_num_at rid astr in
+  let nb_rid_ls = G.get_only_nb_rid_ls rid g in
+  (* 2 *)
+  let num_exits = List.length nb_rid_ls in
+  (* 3 *) 
+  let num_nothing = 1 in
+
+  let p_lat = float num_lat_pop *. x_lat in
+  let p_act = float num_lat_actors *. x_act in
+  let p_exit = float num_exits *. x_exit in
+  let p_nothing = float num_nothing *. x_nothing in
+
+  (* choose one event *)
+  let sum = p_lat +. p_act +. p_exit +. x_nothing in
+  if sum > 0.00001 then
+  ( let prob_ls = 
+    [ Enc_Local, p_lat /. sum; 
+      Enc_Actor, p_act /. sum; 
+      Enc_Exit, p_exit /. sum; 
+      Enc_Nothing, p_nothing /. sum ] in
+    Some (any_from_prob_ls prob_ls)
+  )
+  else
+    None
+
+(* Main adventurer simulation function *)
+let sim_adventurer pol a (g, astr) =
+  match sample_encounter a (g,astr) (1.0, 1.0, 1.0, 5.0) with
+  | Some x ->
+    let rid = Actor.get_rid a in
+    let rm = g.G.rm.(rid) in
+    ( match x with
+      | Enc_Local ->
+          (* encounter a local inhabitant *)
+          ( match get_random_unit_core pol rm with
+            | Some (opp_core, _) ->
+                scenario_meet_a_local pol a opp_core (g,astr)
+            | None -> (g, astr)
+          )
+      | Enc_Actor ->
+          (* encounter an actor (active NPC) *)
+          ( match Astr.get_random_from rid astr with
+            | Some opp_actor when Actor.get_aid opp_actor <> Actor.get_aid a ->
+                scenario_meet_an_actor pol a opp_actor (g,astr)
+            | _ -> (g, astr) 
+          )
+      | Enc_Exit ->
+          (* found an exit *)
+          let nb_rid_ls = G.get_only_nb_rid_ls rid g in
+          ( match any_from_ls nb_rid_ls with
+            | Some nb_rid ->
+                (g, astr) |> transfer_actor a nb_rid 
+            | None ->
+                (g, astr)
+          )
+      | Enc_Nothing ->
+          (g, astr)
+    )
+ | None -> (g, astr)
 
 
 let heal a =

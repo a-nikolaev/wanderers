@@ -98,7 +98,7 @@ let rec main_loop mode_state prev_ticks =
   | State.Play s ->
       let speed = s.State.opts.State.Options.game_speed in
       let speedup = 1.07 ** float speed in
-      State.Play (Sim.run ( 0.0105 *. float (ticks - prev_ticks) *. speedup) s) 
+      State.Play (Sim.run ( 0.011 *. float (ticks - prev_ticks) *. speedup) s) 
   | ms -> ms
   in
 

@@ -251,7 +251,7 @@ module Coll = struct
     let sword_weight s = sw_weight_a +. sw_weight_b *. (s**sw_weight_power) in
     match kind with
       0 -> (* sword *)
-        (* knife, dagger, short sword, broad sword, long sword (first two-handed), great sword, x, y*)
+        (* knife, dagger, short sword, arming sword, long sword (first two-handed), great sword, x, y*)
         let size = Random.int 8 in
         let price = stdprice size in
         let s = float size in

@@ -68,7 +68,7 @@ module Actor = struct
 
   type id = int  
   (* notable / actor units *)
-  type t = {aid: id; core: Unit.Core.t; rid: region_id; cl: cl; res: Resource.t}
+  type t = {aid: id; core: Unit.Core.t; rid: region_id; cl: cl;}
 
   let id_counter = ref 0 
   let gen_id () = 
@@ -78,14 +78,14 @@ module Actor = struct
 
   let make rid fac sp cl = 
     let core = Unit.Core.make fac sp None in
-    {aid = gen_id(); core; rid; cl; res = Resource.zero}
+    {aid = gen_id(); core; rid; cl;}
    
   let make_from_core rid core cl =
-    {aid = gen_id(); core; rid = rid; cl = cl; res = Resource.zero;}
+    {aid = gen_id(); core; rid = rid; cl = cl;}
 
   let update_core a core = {a with core}
 
-  let decompose a = Resource.add (Unit.Core.decompose a.core) a.res
+  let decompose a = Unit.Core.decompose a.core
 
   let get_rid a = a.rid
   let get_aid a = a.aid

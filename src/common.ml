@@ -219,6 +219,7 @@ module Unit = struct
       prop: properties;
       inv: Inv.t;
       aux: aux;
+      res: Resource.t;
     }
 
     (* Freedom of movement *)
@@ -353,6 +354,8 @@ module Unit = struct
     let get_gender uc = uc.gender
     
     let get_inv uc = uc.inv
+    
+    let get_res uc = uc.res
   
     let is_alive uc = uc.hp > 0.0
 
@@ -368,6 +371,8 @@ module Unit = struct
     let heal dhp uc = {uc with hp = min (uc.hp +. dhp) uc.prop.mass}
 
     let upd_inv inv uc = adjust_aux_info {uc with inv}
+    
+    let upd_res res uc = adjust_aux_info {uc with res}
 
     let make fac sp controller =
       let gender = 
@@ -399,6 +404,7 @@ module Unit = struct
           inv = Inv.default;
           aux;
           gender;
+          res = Resource.zero;
         } in
       adjust_aux_info uc
     
@@ -420,7 +426,7 @@ module Unit = struct
     let items_ls uc =
       Inv.fold (fun ls _ _ obj -> obj::ls) [] (get_inv uc)
 
-    let decompose uc = Inv.decompose uc.inv 
+    let decompose uc = Resource.add (Inv.decompose uc.inv) uc.res 
 
     let approx_strength uc = 
       let items = Resource.numeric (decompose uc) in
