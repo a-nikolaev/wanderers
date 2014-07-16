@@ -86,6 +86,7 @@ module Actor = struct
   let update_core a core = {a with core}
 
   let decompose a = Unit.Core.decompose a.core
+    (* items of a merchant don't get decomposed? *)
 
   let get_rid a = a.rid
   let get_aid a = a.aid

@@ -82,7 +82,8 @@ let output_hp core ((i,j) as ij) =
 
 let output_melee melee ((i,j) as ij) =
   Draw.draw_ss_wh (0.0, 26.0) 4.0 2.0 ij;
-  Draw.put_string (Printf.sprintf "%1.2g" (melee.Item.Melee.attrate)) (i+5,j);
+  let x = (melee.Item.Melee.attrate) (* *. (melee.Item.Melee.duration) *) in
+  Draw.put_string (Printf.sprintf "%1.2g" x) (i+5,j);
   Draw.put_string (Printf.sprintf "%1.2g" (melee.Item.Melee.duration)) (i+5,j-1)
 
 let output_ranged optranged ((i,j) as ij) =
@@ -235,6 +236,10 @@ let draw_item t ij obj =
   match Item.get_mat obj with
     Some Item.DmSteel ->
       glColor4f (0.78) (0.78) (0.86) 1.0;
+      Draw.draw_bb img ij;
+      glColor4f 1.0 1.0 1.0 1.0
+  | Some Item.RustySteel ->
+      glColor4f (0.80) (0.70) (0.60) 1.0;
       Draw.draw_bb img ij;
       glColor4f 1.0 1.0 1.0 1.0
   | _ ->

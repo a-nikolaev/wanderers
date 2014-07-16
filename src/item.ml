@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 open Base
 
-type mat = Leather | Wood | Steel | DmSteel 
+type mat = Leather | Wood | Steel | DmSteel | RustySteel 
 
 type eff = [ `Heal ]
 
@@ -54,6 +54,18 @@ let upgrade_prop (m0,m1) prop =
         | `Material _ -> `Material m1
         | x -> x
       )
+  | RustySteel -> 
+      ( let c = 0.65 in
+        match prop with
+        | `Weight x -> `Weight (x *. 1.0)
+        | `Defense x -> `Defense (x *. c)
+        | `Melee {Melee.attrate=att; Melee.duration=dur} -> 
+            `Melee Melee.({attrate = att *. c; duration = dur})
+        | `Ranged {Ranged.force=frc; Ranged.projmass=m; Ranged.dmgmult=dmg} -> 
+            `Ranged Ranged.({force = frc; projmass = m; dmgmult = dmg *. c})
+        | `Material _ -> `Material m1
+        | x -> x
+      )
   | _ -> prop
 
 module PS = Set.Make(struct type t = prop let compare = compare end)
@@ -67,6 +79,7 @@ let upgrade_item (m0,m1) item =
   in
   let price_u = match m1 with 
     | DmSteel -> item.price * 8
+    | RustySteel -> (item.price+1) / 2
     | x -> item.price in
   {item with prop = prop_u; price = price_u}
 
@@ -225,10 +238,14 @@ module Coll = struct
   let upgrade_mat = function
     | Steel -> DmSteel
     | x -> x
-  let rec prob_upgrade_mat p mat =
-    let mat_upd = upgrade_mat mat in
+  let downgrade_mat = function
+    | Steel -> RustySteel
+    | x -> x
+  
+  let rec prob_change_mat p change mat =
+    let mat_upd = change mat in
     if Random.float 1.0 < p then
-      (if mat_upd <> mat then prob_upgrade_mat p mat_upd else mat_upd)
+      (if mat_upd <> mat then prob_change_mat p change mat_upd else mat_upd)
     else mat
 
   let index kind size = kind * 8 + size
@@ -351,7 +368,9 @@ module Coll = struct
     let item = simple_random opt_kind in
     match get_mat item with
       Some mat ->
-        let mat_u = prob_upgrade_mat 0.1 mat in
+        let mat_u = mat 
+          |> prob_change_mat 0.1 upgrade_mat
+          |> prob_change_mat 0.4 downgrade_mat in
         if mat_u <> mat then
           upgrade_item (mat,mat_u) item
         else
