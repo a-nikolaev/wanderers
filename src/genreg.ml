@@ -99,6 +99,89 @@ let maze a wall floor (x,y,dx,dy) =
   in
   repeat [(i0,j0)]
 
+let charmap_std = function
+  | '.' -> Tile.WoodenFloor
+  | '+' -> Tile.OpenDoor
+  | '#' -> Tile.Wall
+  | _ -> Tile.Grass
+
+let charmap_inv = function
+  | '#' -> Tile.DungeonFloor
+  | 'x' -> Tile.DungeonOpenDoor
+  | '.' -> Tile.DungeonWall
+  | _ -> Tile.DungeonFloor
+
+let use_constructor a cons_id charmap none_tile w h wtogen htogen =
+  let cons = Carve.constructors.(cons_id) in
+  match Carve.use_constructor cons wtogen htogen with
+  | Some res -> 
+      let actualw = Carve.(res.rect.Rect.w) in
+      let actualh = Carve.(res.rect.Rect.h) in
+      let x0 = (w - actualw) / 2 in
+      let y0 = (h - actualh) / 2 in
+      let dii = Carve.(res.rect.Rect.x0) - x0 in
+      let djj = Carve.(res.rect.Rect.y0) - y0 in
+      for i = 0 to  w-1 do
+        for j = 0 to h-1 do
+          let t = 
+            match Carve.block_get res (i+dii,j+djj) with
+              Some c -> charmap c
+            | None -> none_tile
+          in
+          Area.set a (i,j) t
+        done
+      done
+  | None -> ()
+
+let add_house a ground_tile (start_x, start_y) wtogen htogen =
+  let (info,_) as cons = Carve.cons_house.(0) in
+
+  let rec attempt () =
+    match Carve.use_constructor cons wtogen htogen with
+    | Some block ->
+        
+        let all_joints = Carve.find_all_joints info block in
+
+        if Array.length all_joints = 0 then (prerr_endline "add_house try one more time"; attempt () )
+        else
+        ( let actualw = Carve.(block.rect.Rect.w) in
+          let actualh = Carve.(block.rect.Rect.h) in
+
+          let x0 = (wtogen - actualw) / 2 in
+          let y0 = (htogen - actualh) / 2 in
+          let dii = Carve.(block.rect.Rect.x0) - x0 in
+          let djj = Carve.(block.rect.Rect.y0) - y0 in
+        
+          (* unblock all doors  *)
+          let unblock (i,j) = 
+            for ii = i-1 to i+1 do
+              for jj = j-1 to j+1 do
+                if Area.is_within a (ii,jj) then 
+                ( if Area.get a (ii,jj) |> Tile.classify |> Tile.can_walk = false then
+                    Area.set a (ii,jj) ground_tile
+                )
+              done
+            done
+          in
+          Array.iter (fun (ii,jj) -> 
+            let i = ii - dii + start_x in
+            let j = jj - djj + start_y in
+            unblock (i,j)
+          ) all_joints;
+          
+          (* blit the house *) 
+          for i = 0 to  wtogen-1 do
+            for j = 0 to htogen-1 do
+              match Carve.block_get block (i+dii,j+djj) with
+                Some c -> Area.set a (start_x+i, start_y+j) (charmap_std c)
+              | None -> ()
+            done
+          done;
+        )
+    | None -> ()
+  in
+  attempt()
+
 let gen pol edges_func rid rm astr =
   let w = 25 in
   let h = 16 in
@@ -135,13 +218,26 @@ let gen pol edges_func rid rm astr =
     match rm.RM.biome with
       RM.Dungeon -> 
         let a = Area.make w h Tile.DungeonWall in
-        maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2);
+        (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
+        let cons_id = Random.int (Array.length Carve.constructors) in
+        use_constructor a cons_id charmap_inv Tile.DungeonWall w h (w-2) (h-2);
         a
     | _ -> Area.init w h (fun _ _ -> any_from_prob_ls prob_ls ) in
 
-
   (* add constructions *)
-  add_cons area rm;
+  (* add_cons area rm; *)
+  let _ =
+    let housew = (w-5)/2 in
+    let househ = (h-3)/2 in
+    let permutations =
+      let a = [|(1,1); (1,2+househ); (4+housew,1); (4+housew,2+househ)|] in
+      array_permute a;
+      a
+    in
+    List.iteri (fun i {RM.constype=ct; RM.consloc=loc} ->
+      add_house area ground_tile permutations.(i) housew househ 
+    ) rm.RM.cons
+  in
 
   (* add stairs *)
   let obj = Obj.empty in

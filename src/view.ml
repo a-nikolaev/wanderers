@@ -363,6 +363,7 @@ let draw_area t reg rm vision =
               | Tile.WoodenFloor -> Draw.draw_bb (1.0,3.0) (i,j)
               | Tile.OpenDoor -> Draw.draw_bb (1.0,4.0) (i,j)
               | Tile.DungeonWall -> Draw.draw_bb (14.0,1.0) (i,j)
+              | Tile.DungeonOpenDoor -> Draw.draw_bb (15.0,2.0) (i,j)
               | _ -> () );
 
             (* draw items *)
@@ -410,6 +411,16 @@ let draw_state t s =
 
   (* units *)
   glColor4f 0.5 0.6 0.3 1.0; 
+  let u_controlled = 
+    E.fold (fun acc u -> 
+      if (Unit.get_controller u = Some s.State.controller_id) then Some u else acc 
+      ) None reg.R.e
+  in
+  let eval_unit_strength u = Unit.Core.approx_strength (Unit.get_core u) in
+  let u_controlled_strength = match u_controlled with 
+    | Some u -> eval_unit_strength u
+    | None -> infinity 
+  in
   E.iter ( fun u ->
       (*
       glColor4f 1.0 1.0 1.0 0.2; 
@@ -426,7 +437,8 @@ let draw_state t s =
       (
 
         if (Unit.get_controller u <> Some s.State.controller_id) then
-        ( let red, green, blue = faction_color (Unit.get_faction u) in
+        ( 
+          let red, green, blue = faction_color (Unit.get_faction u) in
           if visible_well then
             glColor4f red green blue 1.0
           else
@@ -446,8 +458,23 @@ let draw_state t s =
               Some _ ->
                 Draw.draw_bb_vec (0.0, 10.0) (u.Unit.pos); 
             | _ -> ()
-          )
+          );
 
+          (* danger area shading *)
+          if visible_well then
+          ( let u_strength = eval_unit_strength u in
+            let ratio = u_strength /. u_controlled_strength in
+            
+            glColor4f 1.0 1.0 1.0 0.7;
+            
+            if ratio > 4.0 then 
+              Draw.draw_bb_vec (2.0, 9.0) (u.Unit.pos)
+            else if ratio > 1.0 then 
+              Draw.draw_bb_vec (1.0, 9.0) (u.Unit.pos)
+            else if ratio > 0.25 then 
+              Draw.draw_bb_vec (0.0, 9.0) (u.Unit.pos)
+          );
+          
           (*
           match Unit.cur_dest_loc u with
             Some loc -> 
@@ -468,36 +495,12 @@ let draw_state t s =
             Draw.draw_bb (10.0, 17.0) (u.Unit.loc);
           Draw.draw_bb_vec img (u.Unit.pos);
          
-          (*
-          Draw.put_string Unit.( Printf.sprintf "m=%.0f, re=%.1f, ath=%.1f" 
-             (Unit.get_total_mass u)
-             (Unit.get_reaction u)
-             (Unit.get_athletic u) 
-           ) (0,37);
-          *)
-
           output_characteristics (Unit.get_core u) (0,37);
           output_hp (Unit.get_core u) (10,34);
           output_mobility (Unit.get_core u) (10,37);
           output_melee (Unit.get_melee u) (20,37);
           output_ranged (Unit.get_ranged u) (30,37);
           output_defense (Unit.get_defense u) (40,37);
-
-          (*
-          Draw.put_string Unit.(Printf.sprintf "HP=%.0f" (Unit.get_hp u)) (0,36);
-         
-          Draw.put_string Unit.Core.(Printf.sprintf "mc=%.1f, mwi=%.1f, mwe=%.1f" 
-            u.Unit.core.aux.mass_carry u.Unit.core.aux.mass_wield u.Unit.core.aux.mass_wear) (18,34);
-          
-          Draw.put_string Unit.Core.(Printf.sprintf "FM=%.2f" 
-            u.Unit.core.aux.fm) (8,34);
-
-          let melee = Unit.get_melee u in
-          let ranged_force = match Unit.get_ranged u with Some r -> r.Item.Ranged.force | _ -> 0.0 in
-          let defense = Unit.get_defense u in
-          Draw.put_string Item.Melee.(Printf.sprintf "atk rate=%.1f (dur=%.1f), rng=%.1f, def=%.2f" 
-            melee.attrate melee.duration ranged_force defense) (8,35);
-          *)
 
           let fnctq = Fencing.get_tq u.Unit.fnctqn in
           Draw.put_string Unit.(Printf.sprintf "%s" (fnctq.Fencing.name)) (40,0);

@@ -96,6 +96,16 @@ let round_prob xf =
 let round xf =
   int_of_float (floor (0.5 +. xf))
 
+let array_permute a =
+  let len = Array.length a in
+  for i = 0 to len-1 do
+    let j1 = Random.int len in
+    let j2 = Random.int len in
+    let t = a.(j1) in
+    a.(j1) <- a.(j2);
+    a.(j2) <- t
+  done
+
 module Resource = struct
   type t = {wealth:int}
 
@@ -115,4 +125,5 @@ module Resource = struct
 
   let numeric {wealth} = wealth
 end
+
 

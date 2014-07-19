@@ -38,7 +38,7 @@ module Melee = struct
 end
 
 type prop = [ `Melee of Melee.t | `Defense of float | `Weight of float | `Material of mat 
-  | `Consumable of eff | `Wearable | `Wieldable | `Quality of qm | `Ranged of Ranged.t]
+  | `Consumable of eff | `Wearable | `Wieldable | `Quality of qm | `Ranged of Ranged.t | `Money of int]
 
 let upgrade_prop (m0,m1) prop =
   match m1 with
@@ -135,7 +135,7 @@ let map_of_list ls =
 
 (* container *)
 module Cnt = struct
-  type slot_type = General | Hand | Body
+  type slot_type = General | Hand | Body 
   
   let does_fit slt obj = match slt with
     | General -> true

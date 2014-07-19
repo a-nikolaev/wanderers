@@ -109,9 +109,7 @@ let make w h debug =
         if x > 3 then i::ls else ls
       ) [] 0 (len-1) in
     
-    match any_from_ls ls with
-      Some rid -> rid
-    | _ ->
+    let find_good_rid () =
       let best_rid, best_val =
         let centerxy = (w/2, h/2) in
         fold_lim (fun (rid,v) i ->
@@ -124,7 +122,17 @@ let make w h debug =
           if v' > v then (i,v') else (rid,v)
         ) (Random.int len,-1) 0 (len-1) in
       best_rid
+    in
+    (*
+    match any_from_ls ls with
+      Some rid -> rid
+    | _ ->
+        find_good_rid ()
+    *)
+
+    find_good_rid()
   in
+  Printf.printf "new_currid = %i\n%!" new_currid;
   let geo = {geo with G.currid = new_currid} in
   let geo = geo |> Globalmove.move pol astr South |> Globalmove.move pol astr North in 
   let reg = G.curr geo in

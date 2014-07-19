@@ -69,7 +69,7 @@ let make_fac_prop spec variant =
           agricult = Random.bool(); religious = Random.bool()};
         
         htrm = mk_htrm 0. 10. 
-          RM.([(Plains, 2.); (Mnt, 1.); (SnowMnt, -1.); (ForestMnt,0.); (Forest,0.); (DeepForest,0.); (Swamp,0.); (Dungeon, 5.) ]);
+          RM.([(Plains, 2.); (Mnt, 1.); (SnowMnt, -1.); (ForestMnt,0.); (Forest,0.); (DeepForest,0.); (Swamp,0.); (Dungeon, 6.) ]);
       }
   | Domestic ->
       { fsp = spec; cl = Wild;

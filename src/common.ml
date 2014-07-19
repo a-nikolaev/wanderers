@@ -43,7 +43,7 @@ module Tile = struct
   type t = Grass | Wall | Tree1 | Tree2 | Rock1 | Rock2
     | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | OpenDoor 
-    | DungeonFloor | DungeonWall
+    | DungeonFloor | DungeonWall | DungeonOpenDoor 
 
   let get_traction = function
     | IcyGround -> 0.38
@@ -59,7 +59,7 @@ module Tile = struct
 
   let classify = function
     | Grass | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
-    | WoodenFloor | OpenDoor | DungeonFloor -> CFloor
+    | WoodenFloor | OpenDoor | DungeonFloor | DungeonOpenDoor -> CFloor
     | Wall | Tree1 | Tree2 | Rock1 | Rock2 | DungeonWall -> CWall
 
   let can_walk = function

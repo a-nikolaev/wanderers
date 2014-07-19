@@ -2,7 +2,7 @@ LIBDIR=lib
 SRCDIR=src
 BINDIR=bin
 CLIBS=SDL
-LIBS=graphics unix bigarray
+LIBS=graphics unix str bigarray
 SDL_SOURCE=$(LIBDIR)/sdl_stub.c $(LIBDIR)/sdl.mli $(LIBDIR)/sdl.ml
 GL_SOURCE=$(LIBDIR)/glcaml_stub.c $(LIBDIR)/glcaml.mli $(LIBDIR)/glcaml.ml
 ifdef NOSDL
@@ -12,7 +12,7 @@ ifdef NOSDL
 	ifdef WIN32
 	CLIBS=opengl32 gdi32
 	endif
-	LIBS=graphics unix bigarray
+	LIBS=graphics unix str bigarray
 endif	
 
 # OCAMLFLAGS += -g
@@ -33,6 +33,8 @@ SOURCES=$(WIN_SOURCE) $(SDL_SOURCE) $(GL_SOURCE) \
   $(SRCDIR)/global.ml \
   $(SRCDIR)/org.ml \
   $(SRCDIR)/simorg.ml \
+  $(SRCDIR)/carvebase.ml \
+  $(SRCDIR)/carve.ml \
   $(SRCDIR)/genreg.ml \
   $(SRCDIR)/globalmove.ml \
   $(SRCDIR)/genmap.ml \
