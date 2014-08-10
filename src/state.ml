@@ -179,6 +179,19 @@ let make w h debug =
     debug;
   }
 
+let save_to_file s file = 
+  let oc = open_out_bin file in
+  output_value oc s;
+  flush oc;
+  close_out oc
+
+
+let load_from_file file = 
+  let ic = open_in_bin file in
+  let s = input_value ic in
+  close_in ic;
+  s
+
 module Msg = struct
   type t = Left | Right | Up | Down
     | Wait | Attack of int

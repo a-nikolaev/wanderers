@@ -286,7 +286,7 @@ module Coll = struct
         let size = Random.int 8 in
         let price = stdprice size in
         let s = float size in
-        let weight = (sword_weight s) *. 1.15 in
+        let weight = (sword_weight s) *. 1.10 in
         let mat = Steel in 
         let prop = PS.empty 
           |> PS.add (melee (s *. 1.1) 1.0) 
@@ -301,7 +301,7 @@ module Coll = struct
         let weight = (sword_weight s) *. 6.0 in
         let mat = if size < 2 then Leather else Steel in 
         let prop = PS.empty 
-          |> PS.add (`Defense (0.05 +. 0.12 *. float size))
+          |> PS.add (`Defense (0.05 +. 0.13 *. float size))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wearable
           |> PS.add (`Material mat) in
@@ -314,7 +314,7 @@ module Coll = struct
         let weight = (sword_weight s) *. 1.2 in
         let mat = if size < 2 then Wood else Steel in 
         let prop = PS.empty 
-          |> PS.add (melee (s*.1.25) 1.2)
+          |> PS.add (melee (s*.1.1) 1.2)
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
@@ -326,7 +326,7 @@ module Coll = struct
         let weight = (sword_weight s) *. 1.3 in
         let mat = Steel in 
         let prop = PS.empty
-          |> PS.add (melee (s*.1.35) 1.3)
+          |> PS.add (melee (s*.1.2) 1.3)
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in

@@ -260,7 +260,10 @@ let make_geo w h facnum =
     let rec worm ((i,j,k) as loc) =
       if ijk_is_inside loc then
       ( if not cube.(i).(j).(k) then
-        ( cube.(i).(j).(k) <- true; worm (rnd loc) )
+        ( cube.(i).(j).(k) <- true; 
+          if Random.int 8 = 0 then worm (rnd loc); 
+          worm (rnd loc) 
+        )
       )
     in
     for i = 0 to num do

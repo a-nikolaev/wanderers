@@ -28,6 +28,9 @@ open View
 
 open Printf
 
+let finalize s =
+  State.save_to_file s "game.save"
+
 let process_key_pressed k = function
     State.Play s ->
       let g m = State.Play (State.respond s m) in
@@ -35,7 +38,7 @@ let process_key_pressed k = function
       (* let shift = List.mem KMOD_LSHIFT k.modifiers || List.mem KMOD_RSHIFT k.modifiers in *)
       State.
       ( match k.sym, k.keystate with
-        | K_Q, PRESSED when ctrl -> State.Exit
+        | K_Q, PRESSED when ctrl -> finalize s; State.Exit
         | K_LEFT, PRESSED -> if ctrl then g (Msg.Attack 2) else g Msg.Left
         | K_RIGHT, PRESSED -> if ctrl then g (Msg.Attack 0) else g Msg.Right
         | K_UP, PRESSED -> if ctrl then g (Msg.Attack 1) else g Msg.Up
@@ -108,7 +111,13 @@ let rec main_loop mode_state prev_ticks =
   ( match poll_event () with
     | Key k -> 
         main_loop (process_key_pressed k mode_state') ticks
-    | Quit -> main_loop State.Exit ticks
+    | Quit -> 
+        (* on exit *)
+        ( match mode_state' with
+          | State.Play s -> finalize s
+          | _ -> ()
+        );
+        main_loop State.Exit ticks
     | _ -> main_loop mode_state' ticks
   )
 
@@ -126,9 +135,42 @@ let main () =
 	set_caption "Wanderers" "Wanderers";
 	Grafx.init_gl w h;
  
-  let b_debug = Array.length Sys.argv > 1 in
+  (* let b_debug = Array.length Sys.argv > 1 in *)  
+  let b_debug = false in
 
+  let state0 = 
+    (* generate a new map? *)
+    let opt_seed =
+      
+      let max_seed = 2147483647 in
+
+      if Array.length Sys.argv > 1 then
+        let s = Sys.argv.(1) in
+        let seed = 
+          Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1)
+        in
+        Some seed
+      else
+      ( if Sys.file_exists "game.save" then 
+          None
+        else
+          Some (Random.self_init(); Random.int max_seed)
+      )        
+    in
+    let s = 
+      match opt_seed with
+        Some seed ->
+          Random.init seed;
+          State.initial 25 16 b_debug
+      | _ ->
+          State.load_from_file "game.save"
+    in
+    State.Play s
+  in
+
+  (*
   let state0 = State.Play (State.initial 25 16 b_debug) in 
+  *)
 
   main_loop state0 (Timer.get_ticks());
 
