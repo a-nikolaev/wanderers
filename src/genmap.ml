@@ -233,7 +233,119 @@ let make_geo w h facnum =
       acc_arrs
   in
 
+  (* more complex dungeons *)
+  let add_entangled_dungeons given_arrs num =
+    let xlim = w in
+    let ylim = h in
+    let zlim = 15 in
+    let cube = Array.init xlim (fun i -> Array.init ylim (fun j -> Array.init zlim (fun k -> 
+      if k = 0 then true else false 
+      )))
+    in
+    let rnd (i,j,k) =
+      let cases = if k = 1 then 100 else 7 in
+      match Random.int cases with
+      | 0 -> (i+1,j,k)
+      | 1 -> (i-1,j,k)
+      | 2 -> (i,j+1,k)
+      | 3 -> (i,j-1,k)
+      | 4 -> (i,j,k-1) (* up *)
+      | _ -> (i,j,k+1) (* down *)
+    in
+    
+    let ijk_is_inside (i,j,k) =
+      i >= 0 && j >= 0 && k >= 0 && i < xlim && j < ylim && k < zlim 
+    in
+
+    let rec worm ((i,j,k) as loc) =
+      if ijk_is_inside loc then
+      ( if not cube.(i).(j).(k) then
+        ( cube.(i).(j).(k) <- true; worm (rnd loc) )
+      )
+    in
+    for i = 0 to num do
+      worm (Random.int xlim, Random.int ylim, 1)
+    done;
+
+    (* transform the cube into the arrays *)
+    let add (i,j,k) (rms, locs, ijks) =
+      if cube.(i).(j).(k) then
+        let rm = simple_rm (int_of_float altitude.(i).(j)) RM.Dungeon facnum (float (k-1)) in
+        (rm::rms, (-k,(i,j))::locs, (i,j,k)::ijks)
+      else
+        (rms, locs, ijks)
+    in
+
+    let rec fold_cube f acc (i,j,k) =
+      if i >= xlim then
+        fold_cube f acc (0, j+1, k)
+      else if j >= ylim then
+        fold_cube f acc (0, 0, k+1)
+      else if k >= zlim then 
+        acc
+      else
+        fold_cube f (f acc (i,j,k)) (i+1,j,k)
+    in
+
+    (* these cube does not include k=0, the top level *)
+    let (rms, locs, ijks) = fold_cube (fun acc ijk -> add ijk acc ) ([], [], []) (0,0,1) in
+    let rms_arr = Array.of_list rms in
+    let locs_arr = Array.of_list locs in
+    let ijks_arr = Array.of_list ijks in
+
+    (* now, compute nbrs array *)
+
+    let id_cube = Array.init xlim (fun i -> Array.init ylim (fun j -> Array.init zlim (fun k -> None ))) in
+    Array.iteri (fun id (i,j,k) -> id_cube.(i).(j).(k) <- Some id) ijks_arr;
+    let len = Array.length ijks_arr in
+
+    let nbs_arr =
+      Array.mapi (fun id (i,j,k) ->  
+          let m = Me.empty in
+          List.fold_left (fun m (edge, (ni,nj,nk)) ->
+            if ijk_is_inside (ni,nj,nk) then
+              match id_cube.(ni).(nj).(nk) with
+                Some nid -> Me.add edge nid m
+              | _ -> m
+            else
+              m
+          ) 
+          Me.empty
+          [
+            (West, (i-1,j,k));
+            (East, (i+1,j,k));
+            (North, (i,j+1,k));
+            (South, (i,j-1,k));
+            (Up,   (i,j,k-1));
+            (Down, (i,j,k+1));
+          ]
+
+        ) ijks_arr
+    in
+
+    let bridges_ls = 
+      fold_lim (fun acc i -> 
+        fold_lim (fun acc j -> 
+
+          match id_cube.(i).(j).(1) with
+          | Some id -> (index (i,j), Down, Up, id) :: acc
+          | _ -> acc
+
+        ) acc 0 (ylim-1)
+      ) [] 0 (xlim-1)
+    in
+
+    (* connect the given RMs with the new ones *)
+    join 
+      given_arrs 
+      (rms_arr, locs_arr, nbs_arr) 
+      bridges_ls 
+  in
+
+  (*
   let (rm,loc,nb) = add_dng (rm_ow, loc_ow, nb_ow) (w*h/12) in
+  *)
+  let (rm,loc,nb) = add_entangled_dungeons (rm_ow, loc_ow, nb_ow) (w*h/12) in
 
   (* combined *)
   let prio = Prio.make() in

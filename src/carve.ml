@@ -464,10 +464,13 @@ let load_constructor filename =
   close_in ic;
   (info, blocks)
 
-let use_constructor (info, blocks) w h =
-  match generate_auto info blocks w h with
-  | Some (result, n) -> Some result
-  | None -> None  
+let use_constructor (info, blocks) w h min_blocks_number =
+  let rec repeat () = 
+    match generate_auto info blocks w h with
+    | Some (result, n) when n >= min_blocks_number -> Some result
+    | _ -> repeat () 
+  in
+  repeat ()
 
 let constructors = 
   List.map

@@ -172,7 +172,7 @@ let draw_geo g pol =
   done
 
 
-let draw_atlas atlas =
+let draw_atlas atlas geo =
   let cur_z, cur_loc = atlas.Atlas.curloc in
 
   let maxr = 12 in
@@ -182,7 +182,43 @@ let draw_atlas atlas =
   let draw_rmp alpha_bg alpha_marks rmp =
     let z,loc = rmp.Atlas.rloc in
     if z = cur_z && loc_infnorm (loc -- cur_loc) < maxr then
-    ( let img = biome_img rmp.Atlas.biome in
+    ( let img = 
+        match rmp.Atlas.biome with
+        | RM.Dungeon -> 
+            let rid = rmp.Atlas.rid in
+            let h dir = if G.get_nb geo rid dir = None then 0 else 1 in
+            let dimg = 
+              ( match h East, h North, h West, h South with
+                | 1, 0, 0, 1 -> (0,0)  
+                | 1, 0, 1, 1 -> (1,0)  
+                | 0, 0, 1, 1 -> (2,0)
+
+                | 1, 1, 0, 1 -> (0,1)  
+                | 1, 1, 1, 1 -> (1,1)  
+                | 0, 1, 1, 1 -> (2,1)  
+                
+                | 1, 1, 0, 0 -> (0,2)  
+                | 1, 1, 1, 0 -> (1,2)  
+                | 0, 1, 1, 0 -> (2,2)  
+                
+                | 1, 0, 0, 0 -> (3,0)  
+                | 1, 0, 1, 0 -> (4,0)  
+                | 0, 0, 1, 0 -> (5,0)  
+                
+                | 0, 0, 0, 1 -> (3,1)  
+                | 0, 1, 0, 1 -> (4,1)  
+                | 0, 1, 0, 0 -> (5,1)  
+                
+                | 0, 0, 0, 0 -> (3,2)  
+                
+                | _ -> (1,1)
+              )
+            in
+            (16.0, 5.0) ++. (10.0, 2.0) ++. (vec_of_loc dimg)
+
+        | _ ->
+            biome_img rmp.Atlas.biome 
+      in
       glColor4f 1.0 1.0 1.0 alpha_bg; 
       Draw.draw_ss img (scrloc loc) ;
       List.iter 
@@ -563,11 +599,13 @@ let draw_state t s =
   );
   Draw.put_string Unit.(Printf.sprintf "clock: %.0f" (State.Clock.get s.State.clock)) (25,0); 
   Draw.put_string Unit.(Printf.sprintf "speed[+-]:%+i" (s.State.opts.State.Options.game_speed)) (10,0); 
+  Draw.put_string Unit.(Printf.sprintf "h: %i" (s.State.geo.G.loc.(R.get_rid reg) |> fst )) (50,0); 
 
+  (* atlas *)
   if s.State.debug && false then
     draw_geo s.State.geo s.State.pol
   else
-    draw_atlas s.State.atlas;
+    draw_atlas s.State.atlas s.State.geo;
 
   if s.State.debug && false then
   ( (* factions images *)

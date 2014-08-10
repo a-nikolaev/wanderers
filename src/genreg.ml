@@ -111,33 +111,38 @@ let charmap_inv = function
   | '.' -> Tile.DungeonWall
   | _ -> Tile.DungeonFloor
 
-let use_constructor a cons_id charmap none_tile w h wtogen htogen =
+(* returns area and loc0 *)
+let build_dungeon cons_id charmap none_tile w h wtogen htogen =
   let cons = Carve.constructors.(cons_id) in
-  match Carve.use_constructor cons wtogen htogen with
+  match Carve.use_constructor cons wtogen htogen 3 with
   | Some res -> 
       let actualw = Carve.(res.rect.Rect.w) in
       let actualh = Carve.(res.rect.Rect.h) in
+        
+      let a = Area.make (actualw+2) (actualh+2) none_tile in
+      
       let x0 = (w - actualw) / 2 in
       let y0 = (h - actualh) / 2 in
-      let dii = Carve.(res.rect.Rect.x0) - x0 in
-      let djj = Carve.(res.rect.Rect.y0) - y0 in
-      for i = 0 to  w-1 do
-        for j = 0 to h-1 do
+      let dii = Carve.(res.rect.Rect.x0) in
+      let djj = Carve.(res.rect.Rect.y0) in
+      for i = 0 to actualw-1 do
+        for j = 0 to actualh-1 do
           let t = 
             match Carve.block_get res (i+dii,j+djj) with
               Some c -> charmap c
             | None -> none_tile
           in
-          Area.set a (i,j) t
+          Area.set a (i+1,j+1) t
         done
-      done
-  | None -> ()
+      done;
+      (a, (x0,y0))
+  | None -> Area.make w h none_tile, (0,0)
 
 let add_house a ground_tile (start_x, start_y) wtogen htogen =
   let (info,_) as cons = Carve.cons_house.(0) in
 
   let rec attempt () =
-    match Carve.use_constructor cons wtogen htogen with
+    match Carve.use_constructor cons wtogen htogen 1 with
     | Some block ->
         
         let all_joints = Carve.find_all_joints info block in
@@ -183,12 +188,12 @@ let add_house a ground_tile (start_x, start_y) wtogen htogen =
   attempt()
 
 let gen pol edges_func rid rm astr =
-  let w = 25 in
-  let h = 16 in
 
   let prng_state = Random.get_state() in
 
+  (* set the seed *)
   Random.init rm.RM.seed;
+
   let ground_tile = match rm.RM.biome with
     | RM.Mnt | RM.ForestMnt -> Tile.RockyGround
     | RM.SnowMnt -> Tile.SnowyGround
@@ -214,21 +219,21 @@ let gen pol edges_func rid rm astr =
   | _ -> [Tile.Tree1,0.05; Tile.Tree2,0.05; Tile.Wall,0.05; ground_tile,1.00]
   in
 
-  let area = 
+  let area, loc0 = 
+    let w = 25 in
+    let h = 16 in
     match rm.RM.biome with
       RM.Dungeon -> 
-        let a = Area.make w h Tile.DungeonWall in
         (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
         let cons_id = Random.int (Array.length Carve.constructors) in
-        use_constructor a cons_id charmap_inv Tile.DungeonWall w h (w-2) (h-2);
-        a
-    | _ -> Area.init w h (fun _ _ -> any_from_prob_ls prob_ls ) in
+        build_dungeon cons_id charmap_inv Tile.DungeonWall w h (w-2) (h-2)
+    | _ -> Area.init w h (fun _ _ -> any_from_prob_ls prob_ls ), (0,0) in
 
   (* add constructions *)
   (* add_cons area rm; *)
   let _ =
-    let housew = (w-5)/2 in
-    let househ = (h-3)/2 in
+    let housew = (Area.w area - 5)/2 in
+    let househ = (Area.h area - 3)/2 in
     let permutations =
       let a = [|(1,1); (1,2+househ); (4+housew,1); (4+housew,2+househ)|] in
       array_permute a;
@@ -238,6 +243,26 @@ let gen pol edges_func rid rm astr =
       add_house area ground_tile permutations.(i) housew househ 
     ) rm.RM.cons
   in
+
+  (* add N, S, W, E exits *)
+  List.iter 
+    ( fun (dir, loc0, dloc) ->
+        if edges_func dir then
+          let rec repeat loc =
+            if Area.is_within area loc && not (Area.get area loc |> Tile.classify |> Tile.can_walk) then
+              (Area.set area loc ground_tile; repeat (loc ++ dloc))
+            else 
+              ()
+          in
+          repeat loc0
+    ) 
+    ( let x = Area.w area - 1 in let y = Area.h area - 1 in 
+      [ (North, (x/2, y), ( 0,-1));
+        (South, (x/2, 0), ( 0, 1));
+        (East,  (x, y/2), (-1, 0));
+        (West,  (0, y/2), ( 1, 0));
+      ] 
+    );
 
   (* add stairs *)
   let obj = Obj.empty in
@@ -255,7 +280,7 @@ let gen pol edges_func rid rm astr =
       obj in
 
 
-  let explored = Area.make w h None in
+  let explored = Area.make (Area.w area) (Area.h area) None in
  
   (* restart random number initializer *)
   Random.set_state prng_state;
@@ -327,7 +352,7 @@ let gen pol edges_func rid rm astr =
   
   (* randomly drop items, spend more resources *)
   let make_optinv res =
-    let a = Area.make w h None in
+    let a = Area.make (Area.w area) (Area.h area) None in
     let is_a_dungeon = rm.RM.biome = RM.Dungeon in
     let rec distribute res =
       let obj = Item.Coll.random None in
@@ -365,6 +390,6 @@ let gen pol edges_func rid rm astr =
 
   let rm' = RM.({rm with alloc = Mov.add rm.alloc just_allocated; lat = lat_mov_left_2}) in
 
-  ({rid=rid; a=area; e=ue; explored; optinv; obj}, rm')
+  ({rid=rid; a=area; e=ue; explored; optinv; obj; loc0}, rm')
 
 (* generation gunction ends *)

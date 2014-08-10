@@ -93,7 +93,7 @@ let unit_transfer u reg pol b_move_currid (g, astr) =
             match Prio.get nrid g.prio with
               Some nreg ->
                 ( let new_loc = 
-                    match find_entry_loc u.Unit.loc edge nreg.R.a nreg.R.obj with
+                    match find_entry_loc u.Unit.loc edge reg nreg nreg.R.obj with
                       Some loc -> loc 
                     | None -> find_walkable_location_reg nreg in
                   let u2 = {u1 with Unit.loc = new_loc; Unit.pos = vec_of_loc new_loc; ac=[Wait (new_loc, 0.0)]} in

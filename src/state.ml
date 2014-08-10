@@ -116,7 +116,7 @@ let make w h debug =
           let rz,(rxy) = geo.G.loc.(rid) in
           let centrality = 
             if rz = 0 then
-              5 / (1 + (loc_manhattan (rxy -- centerxy))/5)
+              10 / (1 + (loc_manhattan (rxy -- centerxy))/5)
             else 0 in
           let v' = Global.fget geo i player_faction + centrality in
           if v' > v then (i,v') else (rid,v)

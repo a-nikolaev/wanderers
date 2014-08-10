@@ -777,8 +777,14 @@ module R = struct
     let empty = {projls=[]; stairsls = []}
   end
 
-  type t = {rid: region_id; a: Tile.t Area.t; e: E.t; explored: (Tile.t option) Area.t; optinv: (Inv.t option) Area.t;
-    obj: Obj.t}
+  type t = {
+    rid: region_id; 
+    a: Tile.t Area.t;
+    loc0: loc;
+    e: E.t; 
+    explored: (Tile.t option) Area.t; 
+    optinv: (Inv.t option) Area.t;
+    obj: Obj.t;}
 
   (* decompose region (only non-player units if b=true) *)
   let decompose_nonplayer_only b reg = 
@@ -843,7 +849,9 @@ let find_placement_location area obj =
         let c2 = not (List.exists (fun (_,locx) -> loc = locx) obj.R.Obj.stairsls) in
         c2 && (n > 50 || c1) )
 
-let find_entry_loc (i,j) edge area obj = 
+let find_entry_loc (i,j) edge reg1 reg2 obj2 = 
+  let (i,j) = (i,j) ++ reg1.R.loc0 -- reg2.R.loc0 in
+  let area = reg2.R.a in
   let rec search loc d1 d2 i =
     let loc1 = loc ++ i %% d1 in
     let loc2 = loc ++ i %% d2 in
@@ -865,8 +873,8 @@ let find_entry_loc (i,j) edge area obj =
   | West -> search (Area.w area - 1, j) (0,-1) (0,1) 0
   | North -> search (i,0) (-1,0) (1,0) 0
   | South -> search (i, Area.h area - 1) (1,0) (-1,0) 0
-  | Up -> search_stairs R.Obj.StairsDown obj.R.Obj.stairsls
-  | Down -> search_stairs R.Obj.StairsUp obj.R.Obj.stairsls
+  | Up -> search_stairs R.Obj.StairsDown obj2.R.Obj.stairsls
+  | Down -> search_stairs R.Obj.StairsUp obj2.R.Obj.stairsls
   | _ -> None
 
 
