@@ -162,10 +162,10 @@ module Draw = struct
   let tx_tile = TxInfo.make (256,256) (14,14)
   let tx_sml_tile = TxInfo.make (256,256) (7,7)
 
-  let gr_map = Grid.make (14) (7) 14 14
+  let gr_map = Grid.make (7) (7) 14 14
   let gr_sml_ui = Grid.make 0 0 7 7
   let gr_ui = Grid.make 0 0 14 14
-  let gr_atlas = Grid.make (7*46) (7*10) 7 7
+  let gr_atlas = Grid.make (7*50) (7*5) 7 7
 
   let draw_text tij gr ij = Predraw.subimagei zi tx_text tij (Grid.posi zi gr ij)
   let draw_tile tij gr ij = Predraw.subimagei zi tx_tile tij (Grid.posi zi gr ij)

@@ -26,7 +26,7 @@ open Grafx
 
 
 (* inventory coordinates *)
-let inv_coords = (8,20)
+let inv_coords = (10,16)
 let inv_coords_sml = 2 %% inv_coords
 
 let faction_color fac =
@@ -500,8 +500,9 @@ let draw_state t s =
           if s.State.debug then
             Draw.draw_tile (10, 17) Draw.gr_map (u.Unit.loc);
           Draw.draw_tile_vec img Draw.gr_map (u.Unit.pos);
-        
-          let char_ij = (47, 41) in
+       
+          (* Player's Stats *)
+          let char_ij = (50, 32) in
           output_characteristics (Unit.get_core u) (char_ij ++ (0,0));
           output_hp (Unit.get_core u) (char_ij ++ (0,-4));
           output_mobility (Unit.get_core u) (char_ij ++ (0,-6));
@@ -610,7 +611,7 @@ let draw_state t s =
       ) false 0 (s.State.pol.Pol.facnum - 1) in
     set_color 1.0 1.0 1.0 1.0;
     let img = if b then (5,11) else (5,12) in
-    let ij = (26,1) in
+    let ij = (28,1) in
     Draw.draw_tile img Draw.gr_ui ij;
     Draw.draw_tile (img ++ (1,0)) Draw.gr_ui (ij ++ (1,0))
   );

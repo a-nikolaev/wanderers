@@ -220,8 +220,8 @@ let gen pol edges_func rid rm astr =
   in
 
   let area, loc0 = 
-    let w = 22 in
-    let h = 19 in
+    let w = 24 in
+    let h = 15 in
     match rm.RM.biome with
       RM.Dungeon -> 
         (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
@@ -233,7 +233,7 @@ let gen pol edges_func rid rm astr =
   (* add_cons area rm; *)
   let _ =
     let midgapx = 3 in 
-    let midgapy = 3 in 
+    let midgapy = 2 in 
     let housew = (Area.w area - 2 - midgapx)/2 in
     let househ = (Area.h area - 2 - midgapy)/2 in
     let permutations =

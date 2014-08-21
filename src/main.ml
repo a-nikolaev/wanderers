@@ -125,7 +125,7 @@ let main () =
   Random.self_init();
 
 	init [VIDEO];
-	let w = 800 and h = 600	and bpp = 32 in
+	let w = 854 and h = 480	and bpp = 32 in
   let _ = set_video_mode w h bpp [OPENGL; DOUBLEBUF] in
   (* enable_key_repeat default_repeat_delay default_repeat_interval; *)
   (* enable_key_repeat 10 10; *)
@@ -145,9 +145,9 @@ let main () =
       let max_seed = 2147483647 in
 
       if Array.length Sys.argv > 1 then
-        let s = Sys.argv.(1) in
+        let s_prelim = Sys.argv.(1) in
         let s = 
-          if s = "?" then 
+          if s_prelim = "?" then 
           ( let len = 1 + Random.int 6 in
             let s = String.make len 'a' in
             for i = 0 to len-1 do 
@@ -158,7 +158,7 @@ let main () =
             s
           )
           else
-            s
+            s_prelim
         in
         let seed = Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) in
         Some seed
