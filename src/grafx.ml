@@ -25,6 +25,8 @@ open SDLGL
 (*open Draw*)
 open Glcaml
 
+open Base
+
 let load_image bmp =
   let s1 = (load_bmp bmp) in
   let s2 = display_format s1 in 
@@ -63,80 +65,151 @@ let load_gl_textures () =
     gl_rgba gl_unsigned_byte (surface_pixels s)
 
 
-let limx = 1.0/.256.0 
-let limy = 1.0/.256.0 
-let subimage (dx, dy) z (tx, ty) (vx, vy) =
-  let tx0 = dx *. tx *. limx in
-  let tx1 = dx *. (tx +. 1.0) *. limx  in
-  let ty1 = 1.0 -. dy *. ty *. limy  in
-  let ty0 = 1.0 -. dy *. (ty +. 1.0) *. limy in
-  let vx1 = vx +. dx*.z in
-  let vy1 = vy +. dy*.z in
-  glTexCoord2f tx0 ty0; glVertex2f  vx   vy; (* Bottom Left Of The Texture and Quad *)
-  glTexCoord2f tx1 ty0; glVertex2f  vx1  vy; (* Bottom Right Of The Texture and Quad *)
-  glTexCoord2f tx1 ty1; glVertex2f  vx1 vy1; (* Top Right Of The Texture and Quad *)
-  glTexCoord2f tx0 ty1; glVertex2f  vx  vy1  (* Top Left Of The Texture and Quad *)
+module TxInfo = struct
+  type tx_coord_arr = float array array
+  
+  type t = {xc : tx_coord_arr; yc: tx_coord_arr; fw:float; fh:float; iw:int; ih:int}
 
-let subimage_wh w h (dx, dy) z (tx, ty) (vx, vy) =
-  let tx0 = dx *. tx *. limx in
-  let tx1 = dx *. (tx +. 1.0*.w) *. limx  in
-  let ty1 = 1.0 -. dy *. ty *. limy  in
-  let ty0 = 1.0 -. dy *. (ty +. 1.0*.h) *. limy in
-  let vx1 = vx +. dx*.z*.w in
-  let vy1 = vy +. dy*.z*.h in
-  glTexCoord2f tx0 ty0; glVertex2f  vx   vy; (* Bottom Left Of The Texture and Quad *)
-  glTexCoord2f tx1 ty0; glVertex2f  vx1  vy; (* Bottom Right Of The Texture and Quad *)
-  glTexCoord2f tx1 ty1; glVertex2f  vx1 vy1; (* Top Right Of The Texture and Quad *)
-  glTexCoord2f tx0 ty1; glVertex2f  vx  vy1  (* Top Left Of The Texture and Quad *)
+  let make (fullw, fullh) (iw, ih) =
+    let fw = float iw in
+    let fh = float ih in
+    let limx = 1.0 /. float fullw in
+    let limy = 1.0 /. float fullh in
 
-let grid_pos (dx, dy) z (i, j) = z *. dx *. float i,  z *. dy *. float j
+    let tw = fullw / iw in
+    let th = fullh / ih in
 
-let grid_pos_vec (dx, dy) z (i, j) = floor(z *. dx *. i),  floor(z *. dy *. j)
+    let xc = Array.make_matrix (tw+1) (th+1) 0.0 in
+    let yc = Array.make_matrix (tw+1) (th+1) 0.0 in
+
+    for i = 0 to tw do
+      for j = 0 to th do
+        let tx = fw *. float i *. limx in
+        let ty = 1.0 -. fh *. (float j) *. limy in
+        xc.(i).(j) <- tx;
+        yc.(i).(j) <- ty;
+      done
+    done;
+
+    {xc; yc; fw; fh; iw; ih}
+end
+
+module Predraw = struct
+  open TxInfo
+
+  let subimagei z tx (ti, tj) (vx, vy) =
+    let vx1 = vx + tx.iw * z in
+    let vy1 = vy + tx.ih * z in
+    glTexCoord2f tx.xc.(ti).(tj+1)   tx.yc.(ti).(tj+1);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+1).(tj+1) tx.yc.(ti+1).(tj+1);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+1).(tj)   tx.yc.(ti+1).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);      glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+  
+  let subimagei_stretch_wh (sx,sy) w h z tx (ti, tj) (vx, vy) =
+    let vx1 = vx + tx.iw * w * z * sx in
+    let vy1 = vy + tx.ih * h * z * sy in
+    glTexCoord2f tx.xc.(ti).(tj+h)   tx.yc.(ti).(tj+h);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+w).(tj+h) tx.yc.(ti+w).(tj+h);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+w).(tj)   tx.yc.(ti+w).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);      glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+  
+  let subimagei_wh = subimagei_stretch_wh (1,1)
+  
+  let round x = (x +. 0.5) |> floor |> int_of_float
+
+  let subimagef z tx (ti, tj) (vx, vy) =
+    let vx = round vx in
+    let vy = round vy in
+    let vx1 = vx + tx.iw * z in
+    let vy1 = vy + tx.ih * z in
+    glTexCoord2f tx.xc.(ti).(tj+1)   tx.yc.(ti).(tj+1);      glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+1).(tj+1) tx.yc.(ti+1).(tj+1);    glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+1).(tj)   tx.yc.(ti+1).(tj);  glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);    glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+  
+  let subimagef_wh w h z tx (ti, tj) (vx, vy) =
+    let vx = round vx in
+    let vy = round vy in
+    let vx1 = vx + tx.iw * w * z in
+    let vy1 = vy + tx.ih * h * z in
+    glTexCoord2f tx.xc.(ti).(tj+h)   tx.yc.(ti).(tj+h);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+w).(tj+h) tx.yc.(ti+w).(tj+h);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti+w).(tj)   tx.yc.(ti+w).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);      glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+end
+
+module Grid = struct
+  type t = {
+    x0: int; y0: int; dx: int; dy: int;
+    x0f: float; y0f: float; dxf: float; dyf: float
+  }
+
+  let make x0 y0 dx dy =
+    { x0; y0; dx; dy; 
+      x0f = float x0; y0f = float y0;
+      dxf = float dx; dyf = float dy;
+    }
+
+  let posi z g (i,j) = (z*(g.x0 + i*g.dx (* + j*g.dx/2 *)), z*(g.y0 + j*g.dy))
+  let posf z g (i,j) = (z*.(g.x0f +. i*.g.dxf (* +. 0.5*.j*.g.dxf *)), z*.(g.y0f +. j*.g.dyf))
+end
 
 module Draw = struct
-  let z = 2.0
+  let zi = 2
+  let zf = 2.0
 
-  let (dx_sml, dy_sml) as dxdy_sml = (7.0, 7.0)
-  let dxdy_big = (14.0, 14.0)
-  
-  let draw_ss txty (i,j) = subimage dxdy_sml z txty (grid_pos dxdy_sml z (i+1,j+1))
-  let draw_bb txty (i,j) = subimage dxdy_big z txty (grid_pos dxdy_big z (i+1,j+1))
-  
-  let draw_ss_wh txty w h (i,j) = subimage_wh w h dxdy_sml z txty (grid_pos dxdy_sml z (i+1,j+1 + 1 - int_of_float h))
-  
-  let draw_ss_vec txty (x,y) = subimage dxdy_sml z txty (grid_pos_vec dxdy_big z (x+.1.0,y+.1.0))
-  let draw_bb_vec txty (x,y) = subimage dxdy_big z txty (grid_pos_vec dxdy_big z (x+.1.0,y+.1.0))
+  let tx_text = TxInfo.make (256,256) (7,7)
+  let tx_tile = TxInfo.make (256,256) (14,14)
+  let tx_sml_tile = TxInfo.make (256,256) (7,7)
 
-  let put_char ch ij =
+  let gr_map = Grid.make (14) (7) 14 14
+  let gr_sml_ui = Grid.make 0 0 7 7
+  let gr_ui = Grid.make 0 0 14 14
+  let gr_atlas = Grid.make (7*46) (7*10) 7 7
+
+  let draw_text tij gr ij = Predraw.subimagei zi tx_text tij (Grid.posi zi gr ij)
+  let draw_tile tij gr ij = Predraw.subimagei zi tx_tile tij (Grid.posi zi gr ij)
+  let draw_sml_tile tij gr ij = Predraw.subimagei zi tx_sml_tile tij (Grid.posi zi gr ij)
+  let draw_sml_tile_wh w h tij gr ij = Predraw.subimagei_wh w h zi tx_sml_tile tij (Grid.posi zi gr ij)
+ 
+  let draw_tile_stretch_wh sxsy w h tij gr ij = 
+    Predraw.subimagei_stretch_wh sxsy w h zi tx_tile tij (Grid.posi zi gr ij)
+
+  let draw_text_vec tij gr xy = Predraw.subimagef zi tx_text tij (Grid.posf zf gr xy)
+  let draw_tile_vec tij gr xy = Predraw.subimagef zi tx_tile tij (Grid.posf zf gr xy)
+  let draw_sml_tile_vec tij gr xy = Predraw.subimagef zi tx_sml_tile tij (Grid.posf zf gr xy)
+  let draw_sml_tile_wh_vec w h tij gr xy = Predraw.subimagef_wh w h zi tx_sml_tile tij (Grid.posf zf gr xy)
+
+  let put_char ch gr ij =
     let code = Char.code ch in
     if code>32 && code <128 then
       let k = code - 33 in
-      draw_ss (float (k mod 18), float (k/18)) ij
+      draw_text ((k mod 18), (k/18)) gr ij
     else
     if code = 32 then 
-      draw_ss (float (94 mod 18), float (94/18)) ij
+      draw_text ((94 mod 18), (94/18)) gr ij
     else
       failwith (Printf.sprintf "put_char: char '%c' is out of range" ch)
 
-  let put_string s (i, j) = 
+  let put_string s gr (i, j) = 
     for e = 0 to String.length s - 1 do
-      put_char s.[e] (i+e, j)
+      put_char s.[e] gr (i+e, j)
     done
   
-  let put_char_vec ch xy =
+  let put_char_vec ch gr xy =
     let code = Char.code ch in
     if code>32 && code <128 then
       let k = code - 33 in
-      draw_ss_vec (float (k mod 18), float (k/18)) xy
+      draw_text_vec ((k mod 18), (k/18)) gr xy
     else
     if code = 32 then 
-      draw_ss_vec (float (94 mod 18), float (94/18)) xy
+      draw_text_vec ((94 mod 18), (94/18)) gr xy
     else
       failwith (Printf.sprintf "put_char: char '%c' is out of range" ch)
 
-  let put_string_vec s (x, y) = 
+  let put_string_vec s gr (x, y) = 
     for e = 0 to String.length s - 1 do
-      put_char_vec s.[e] (x +. 0.5*.float e, y)
+      put_char_vec s.[e] gr (x +. 0.5*.float e, y)
     done
 end
 

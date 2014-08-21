@@ -329,11 +329,14 @@ let respond s =
           let uii = iirange (ii+dii) in
           match invclass with
             CtrlM.InvUnit -> 
-              if ic + dic < 0 then (CtrlM.InvGround, 0, uii, u, utl) 
-              else (CtrlM.InvUnit, min (ic+dic) 1, uii, u, utl)
+              let uic = ic + dic in
+              if uic < 0 || uic > 1 then 
+                (CtrlM.InvGround, 0, uii, u, utl) 
+              else 
+                (CtrlM.InvUnit, uic, uii, u, utl)
           | CtrlM.InvGround -> 
-              if ic + dic > 0 then (CtrlM.InvUnit, 0, uii, u, utl) 
-              else (CtrlM.InvGround, max (ic+dic) 0, uii, u, utl)
+              if dic > 0 then (CtrlM.InvUnit, 0, uii, u, utl) 
+              else (CtrlM.InvUnit, 1, uii, u, utl)
         in
         {s with cm = CtrlM.Inventory upd}
       in

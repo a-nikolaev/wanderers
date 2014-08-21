@@ -94,7 +94,7 @@ let rec main_loop mode_state prev_ticks =
               if s.State.debug then
               ( let fps = 1000.0 /. float (ticks - prev_ticks) in
                 glColor4f 1.0 1.0 1.0 1.0; 
-                Grafx.Draw.put_string (sprintf "FPS: %.0f" fps) (0,0); )
+                Grafx.Draw.put_string (sprintf "FPS: %.0f" fps) Grafx.Draw.gr_ui (0,0); )
           | _ -> () );
     );
   let mode_state' = match mode_state with
@@ -125,7 +125,7 @@ let main () =
   Random.self_init();
 
 	init [VIDEO];
-	let w = 1100 and h = 550	and bpp = 32 in
+	let w = 800 and h = 600	and bpp = 32 in
   let _ = set_video_mode w h bpp [OPENGL; DOUBLEBUF] in
   (* enable_key_repeat default_repeat_delay default_repeat_interval; *)
   (* enable_key_repeat 10 10; *)
@@ -146,9 +146,21 @@ let main () =
 
       if Array.length Sys.argv > 1 then
         let s = Sys.argv.(1) in
-        let seed = 
-          Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1)
+        let s = 
+          if s = "?" then 
+          ( let len = 1 + Random.int 6 in
+            let s = String.make len 'a' in
+            for i = 0 to len-1 do 
+              let c = Char.chr (Char.code 'a' + Random.int 26) in 
+              s.[i] <- c
+            done;
+            Printf.printf "Random seed: %s\n" s;
+            s
+          )
+          else
+            s
         in
+        let seed = Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) in
         Some seed
       else
       ( if Sys.file_exists "game.save" then 
