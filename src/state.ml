@@ -335,7 +335,8 @@ let respond s =
               else 
                 (CtrlM.InvUnit, uic, uii, u, utl)
           | CtrlM.InvGround -> 
-              if dic > 0 then (CtrlM.InvUnit, 0, uii, u, utl) 
+              if dic = 0 then (CtrlM.InvGround, 0, uii, u, utl) 
+              else if dic > 0 then (CtrlM.InvUnit, 0, uii, u, utl) 
               else (CtrlM.InvUnit, 1, uii, u, utl)
         in
         {s with cm = CtrlM.Inventory upd}

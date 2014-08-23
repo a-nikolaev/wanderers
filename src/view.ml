@@ -116,7 +116,7 @@ let output_ranged optranged ((i,j) as ij) =
 
 let output_defense defense ((i,j) as ij) =
   Draw.draw_sml_tile_wh 4 2 (0, 30) Draw.gr_sml_ui (ij -- (0,1));
-  Draw.put_string (Printf.sprintf "%1.1g" defense) Draw.gr_sml_ui (i+5,j)
+  Draw.put_string (Printf.sprintf "%1.2g" defense) Draw.gr_sml_ui (i+5,j)
 
 let output_mobility core ((i,j) as ij) =
   Draw.draw_sml_tile_wh  4 2 (0, 32) Draw.gr_sml_ui (ij -- (0,1));
@@ -238,7 +238,11 @@ let draw_item t obj gr ij =
   let img = (9 + x mod 8, 9 + x / 8) in
   match Item.get_mat obj with
     Some Item.DmSteel ->
-      set_color (0.78) (0.78) (0.86) 1.0;
+      let tt = 0.0001 *. float t in
+      let xr = 0.05 *. sin (tt) in
+      let xg = 0.05 *. sin (tt +. 1.0) in
+      let xb = 0.05 *. sin (tt +. 2.0) in
+      set_color (0.78 -. xr) (0.78 +. xg) (0.86 +. xb) 1.0;
       Draw.draw_tile img gr ij;
       set_color 1.0 1.0 1.0 1.0
   | Some Item.RustySteel ->

@@ -156,7 +156,7 @@ end
 
 module Draw = struct
   let zi = 2
-  let zf = 2.0
+  let zf = float zi
 
   let tx_text = TxInfo.make (256,256) (7,7)
   let tx_tile = TxInfo.make (256,256) (14,14)

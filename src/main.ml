@@ -125,7 +125,7 @@ let main () =
   Random.self_init();
 
 	init [VIDEO];
-	let w = 854 and h = 480	and bpp = 32 in
+	let w = 854 / 2 * Grafx.Draw.zi and h = 480 / 2 * Grafx.Draw.zi and bpp = 32 in
   let _ = set_video_mode w h bpp [OPENGL; DOUBLEBUF] in
   (* enable_key_repeat default_repeat_delay default_repeat_interval; *)
   (* enable_key_repeat 10 10; *)
