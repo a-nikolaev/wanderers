@@ -37,6 +37,11 @@ Not implemented yet:
   * Rumors, information spreading, reputation.    
   * Apocalyptic events, villains, and winning conditions.    
 
+### Command line
+  `./wanderers` loads the saved game if it exists, otherwise starts a new game.   
+  `./wanderers <seed>` starts a new game with the given seed.   
+  `./wanderers ?` starts a new game with a random seed.
+
 ### Controls
 `Arrow keys` or `h` `j` `k` `l` Movement  
 `w` `a` `s` `d` Melee attack   
@@ -45,16 +50,12 @@ Not implemented yet:
 `i` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
 `<` `>` Use stairs    
-`Ctrl+Q` Quit   
+`Ctrl+Q` Save and quit   
 
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,
 then press `1` to put it on, `2` to put it in the inventory, or `0` to drop it.
 Press `Esc` or `q` to close the inventory. Also, don't put a lot of stuff in 
 the inventory. 
-
-There is no command to save the game yet. 
-First, because there is not enough contents yet for a long game, 
-and second, you will probably die pretty quickly anyway. 
 
 ### License
 The game is distributed under GPL3 license. 
