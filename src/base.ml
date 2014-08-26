@@ -88,6 +88,16 @@ let any_from_prob_ls ls =
   in
   next (Random.float 1.0) ls
 
+let any_from_rate_ls ls = 
+  let sum = List.fold_left (fun acc (_, r) -> acc +. r) 0.0 ls in
+  let rec next x = function  
+    | (v,r)::tl when x < r -> v 
+    | (v,_)::[] -> v
+    | (v,r)::tl -> next (x-.r) tl
+    | [] -> failwith "list is empty"
+  in
+  next (Random.float sum) ls
+
 let round_prob xf =
   let z = int_of_float (floor xf) in
   let dz = if Random.float 1.0 < xf -. float z then 1 else 0 in

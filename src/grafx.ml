@@ -50,7 +50,7 @@ let load_image bmp =
 let texture = Array.make 1 0
 
 let load_gl_textures () =
-	let s = load_image "data/z.bmp" in
+	let s = load_image "data/tileset.bmp" in
 	glGenTextures 1 texture;
 	glBindTexture gl_texture_2d texture.(0);
   glTexParameteri gl_texture_2d gl_texture_mag_filter gl_nearest; (* scale linearly when image bigger than texture *)
@@ -68,74 +68,93 @@ let load_gl_textures () =
 module TxInfo = struct
   type tx_coord_arr = float array array
   
-  type t = {xc : tx_coord_arr; yc: tx_coord_arr; fw:float; fh:float; iw:int; ih:int}
+  type t = {
+    x1 : tx_coord_arr; y1: tx_coord_arr; 
+    x2 : tx_coord_arr; y2: tx_coord_arr; 
+    basew: int; baseh: int;
+    dx: int; dy: int;
+    iw:int; ih:int;
+  }
 
-  let make (fullw, fullh) (iw, ih) =
-    let fw = float iw in
-    let fh = float ih in
+  let make (fullw, fullh) (basew, baseh) (dx, dy) (iw, ih) =
+    let fbasew = float basew in
+    let fbaseh = float baseh in
     let limx = 1.0 /. float fullw in
     let limy = 1.0 /. float fullh in
 
-    let tw = fullw / iw in
-    let th = fullh / ih in
+    let tw = fullw / basew in
+    let th = fullh / baseh in
 
-    let xc = Array.make_matrix (tw+1) (th+1) 0.0 in
-    let yc = Array.make_matrix (tw+1) (th+1) 0.0 in
+    let x1 = Array.make_matrix (tw) (th) 0.0 in
+    let y1 = Array.make_matrix (tw) (th) 0.0 in
+    let x2 = Array.make_matrix (tw) (th) 0.0 in
+    let y2 = Array.make_matrix (tw) (th) 0.0 in
 
-    for i = 0 to tw do
-      for j = 0 to th do
-        let tx = fw *. float i *. limx in
-        let ty = 1.0 -. fh *. (float j) *. limy in
-        xc.(i).(j) <- tx;
-        yc.(i).(j) <- ty;
+    for i = 0 to tw-1 do
+      for j = 0 to th-1 do
+        let tx1 = float (basew * i + dx) *. limx in
+        let ty1 = 1.0 -. float (baseh * (j+1) - dy - ih) *. limy in
+        
+        let tx2 = float (basew * i + dx + iw) *. limx in
+        let ty2 = 1.0 -. float (baseh * (j+1) - dy) *. limy in
+        
+        x1.(i).(j) <- tx1;
+        y1.(i).(j) <- ty1;
+
+        x2.(i).(j) <- tx2;
+        y2.(i).(j) <- ty2;
       done
     done;
 
-    {xc; yc; fw; fh; iw; ih}
+    {x1; y1; x2; y2; basew; baseh; dx; dy; iw; ih}
 end
 
 module Predraw = struct
   open TxInfo
 
   let subimagei z tx (ti, tj) (vx, vy) =
+    let vx = vx + tx.dx * z in
+    let vy = vy + tx.dy * z in
     let vx1 = vx + tx.iw * z in
     let vy1 = vy + tx.ih * z in
-    glTexCoord2f tx.xc.(ti).(tj+1)   tx.yc.(ti).(tj+1);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+1).(tj+1) tx.yc.(ti+1).(tj+1);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+1).(tj)   tx.yc.(ti+1).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);      glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj) tx.y2.(ti).(tj);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti).(tj) tx.y2.(ti).(tj);    glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti).(tj) tx.y1.(ti).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj) tx.y1.(ti).(tj);    glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
   
   let subimagei_stretch_wh (sx,sy) w h z tx (ti, tj) (vx, vy) =
-    let vx1 = vx + tx.iw * w * z * sx in
-    let vy1 = vy + tx.ih * h * z * sy in
-    glTexCoord2f tx.xc.(ti).(tj+h)   tx.yc.(ti).(tj+h);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+w).(tj+h) tx.yc.(ti+w).(tj+h);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+w).(tj)   tx.yc.(ti+w).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);      glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+    let vx = vx + tx.dx * z * sx in
+    let vy = vy + tx.dy * z * sy in
+    let vx1 = vx + (tx.iw + tx.basew*(w-1)) * z * sx in
+    let vy1 = vy + (tx.ih + tx.baseh*(h-1)) * z * sy in
+    glTexCoord2f tx.x1.(ti).(tj+h-1)     tx.y2.(ti).(tj+h-1);      glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti+w-1).(tj+h-1) tx.y2.(ti+w-1).(tj+h-1);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti+w-1).(tj)     tx.y1.(ti+w-1).(tj);      glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj)         tx.y1.(ti).(tj);          glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
   
   let subimagei_wh = subimagei_stretch_wh (1,1)
   
   let round x = (x +. 0.5) |> floor |> int_of_float
 
   let subimagef z tx (ti, tj) (vx, vy) =
-    let vx = round vx in
-    let vy = round vy in
+    let vx = round vx + tx.dx * z in
+    let vy = round vy + tx.dy * z in
     let vx1 = vx + tx.iw * z in
     let vy1 = vy + tx.ih * z in
-    glTexCoord2f tx.xc.(ti).(tj+1)   tx.yc.(ti).(tj+1);      glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+1).(tj+1) tx.yc.(ti+1).(tj+1);    glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+1).(tj)   tx.yc.(ti+1).(tj);  glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);    glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj) tx.y2.(ti).(tj);  glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti).(tj) tx.y2.(ti).(tj);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti).(tj) tx.y1.(ti).(tj);  glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj) tx.y1.(ti).(tj);  glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
   
   let subimagef_wh w h z tx (ti, tj) (vx, vy) =
-    let vx = round vx in
-    let vy = round vy in
+    let vx = round vx + tx.dx * z in
+    let vy = round vy + tx.dy * z in
     let vx1 = vx + tx.iw * w * z in
     let vy1 = vy + tx.ih * h * z in
-    glTexCoord2f tx.xc.(ti).(tj+h)   tx.yc.(ti).(tj+h);    glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+w).(tj+h) tx.yc.(ti+w).(tj+h);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti+w).(tj)   tx.yc.(ti+w).(tj);    glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
-    glTexCoord2f tx.xc.(ti).(tj)     tx.yc.(ti).(tj);      glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj+h-1)     tx.y2.(ti).(tj+h-1);      glVertex2i  vx   vy; (* Bottom Left Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti+w-1).(tj+h-1) tx.y2.(ti+w-1).(tj+h-1);  glVertex2i  vx1  vy; (* Bottom Right Of The Texture and Quad *)
+    glTexCoord2f tx.x2.(ti+w-1).(tj)     tx.y1.(ti+w-1).(tj);      glVertex2i  vx1 vy1; (* Top Right Of The Texture and Quad *)
+    glTexCoord2f tx.x1.(ti).(tj)         tx.y1.(ti).(tj);          glVertex2i  vx  vy1  (* Top Left Of The Texture and Quad *)
 end
 
 module Grid = struct
@@ -158,9 +177,12 @@ module Draw = struct
   let zi = 2
   let zf = float zi
 
-  let tx_text = TxInfo.make (256,256) (7,7)
-  let tx_tile = TxInfo.make (256,256) (14,14)
-  let tx_sml_tile = TxInfo.make (256,256) (7,7)
+  let tx_text = TxInfo.make (512,512) (7,7) (0,0) (7,7)
+  let tx_tile = TxInfo.make (512,512) (14,14) (0,0) (14,14)
+  let tx_tile_ext = TxInfo.make (512,512) (14,14) (-7,-7) (28,28) (* half-tile border *)
+  let tx_tile_high = TxInfo.make (512,512) (14,14) (0,0) (14,28) (* double height *)
+  
+  let tx_sml_tile = TxInfo.make (512,512) (7,7) (0,0) (7,7)
 
   let gr_map = Grid.make (7) (7) 14 14
   let gr_sml_ui = Grid.make 0 0 7 7
@@ -169,6 +191,9 @@ module Draw = struct
 
   let draw_text tij gr ij = Predraw.subimagei zi tx_text tij (Grid.posi zi gr ij)
   let draw_tile tij gr ij = Predraw.subimagei zi tx_tile tij (Grid.posi zi gr ij)
+  let draw_tile_ext tij gr ij = Predraw.subimagei zi tx_tile_ext tij (Grid.posi zi gr ij)
+  let draw_tile_high tij gr ij = Predraw.subimagei zi tx_tile_high tij (Grid.posi zi gr ij)
+
   let draw_sml_tile tij gr ij = Predraw.subimagei zi tx_sml_tile tij (Grid.posi zi gr ij)
   let draw_sml_tile_wh w h tij gr ij = Predraw.subimagei_wh w h zi tx_sml_tile tij (Grid.posi zi gr ij)
  
@@ -177,6 +202,10 @@ module Draw = struct
 
   let draw_text_vec tij gr xy = Predraw.subimagef zi tx_text tij (Grid.posf zf gr xy)
   let draw_tile_vec tij gr xy = Predraw.subimagef zi tx_tile tij (Grid.posf zf gr xy)
+  let draw_tile_ext_vec tij gr xy = Predraw.subimagef zi tx_tile_ext tij (Grid.posf zf gr xy)
+  let draw_tile_high_vec tij gr xy = Predraw.subimagef zi tx_tile_high tij (Grid.posf zf gr xy)
+
+
   let draw_sml_tile_vec tij gr xy = Predraw.subimagef zi tx_sml_tile tij (Grid.posf zf gr xy)
   let draw_sml_tile_wh_vec w h tij gr xy = Predraw.subimagef_wh w h zi tx_sml_tile tij (Grid.posf zf gr xy)
 

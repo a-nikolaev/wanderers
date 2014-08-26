@@ -24,6 +24,25 @@ open Common
 open Global
 open Grafx
 
+(* Tileset positions *)
+module Pos = struct
+  let font = (0,0)  (* small *)
+  let atlas = (0,8) (* small *)
+
+  let u_hum = (0,12)
+  let u_mon = (0,16)
+
+  let bg = (10,0)
+
+  let objs = (16,0)
+
+  let items = (25,16)
+
+  let ui_dyn = (0,26)
+  let ui_stat = (0,31)
+  let ui_stat_sml = 2 %% ui_stat
+end
+
 
 (* inventory coordinates *)
 let inv_coords = (10,16)
@@ -38,16 +57,16 @@ let faction_color fac =
   (red, green, blue)
 
 let species_img = function
-    Species.Hum, i -> (2 + i, 5)
-  | Species.Cow, _ -> (9, 6)
-  | Species.Horse, _ -> (10, 6)
-  | Species.Wolf, _ -> (0, 7)
-  | Species.Bear, _ -> (1, 7)
-  | Species.Troll, _ -> (2, 7)
-  | Species.Skeleton, _ -> (9, 5) 
-  | Species.Zombie, _ -> (10, 5) 
-  | Species.SkeletonWar, _ -> (11, 5) 
-  | Species.ZombieHulk, _ -> (12, 5) 
+    Species.Hum, i -> Pos.u_hum ++ (2 + i, 0)
+  | Species.Cow, _ -> Pos.u_mon ++ (0, 0)
+  | Species.Horse, _ -> Pos.u_mon ++ (1, 0)
+  | Species.Wolf, _ -> Pos.u_mon ++ (0, 3)
+  | Species.Bear, _ -> Pos.u_mon ++ (1, 3)
+  | Species.Troll, _ -> Pos.u_mon ++ (2, 3)
+  | Species.Skeleton, _ -> Pos.u_mon ++ (0, 1) 
+  | Species.SkeletonWar, _ -> Pos.u_mon ++ (2, 1) 
+  | Species.Zombie, _ -> Pos.u_mon ++ (0, 2) 
+  | Species.ZombieHulk, _ -> Pos.u_mon ++ (2, 2) 
 
 (* switch texture *)
 let switch_to_text () = 
@@ -77,36 +96,37 @@ let draw_gl_scene draw_func =
   glEnd();
   swap_buffers ()
 
-let biome_img = function
-  | RM.SnowMnt -> (9, 5)
-  | RM.Mnt -> (10, 5)
-  | RM.Plains -> (11, 5)
-  | RM.Swamp -> (12, 5)
-  | RM.Forest -> (13, 5)
-  | RM.DeepForest -> (14, 5) 
-  | RM.ForestMnt -> (15, 5)
-  | RM.Dungeon -> (16, 5)
-  | _ -> (8, 5)
-
+let biome_img b = 
+  Pos.atlas ++ 
+  match b with
+  | RM.SnowMnt -> (0, 1)
+  | RM.Mnt -> (1, 1)
+  | RM.Plains -> (2, 1)
+  | RM.Swamp -> (3, 1)
+  | RM.Forest -> (4, 1)
+  | RM.DeepForest -> (5, 1) 
+  | RM.ForestMnt -> (6, 1)
+  | RM.Dungeon -> (7, 1)
+  | _ -> (0, 0)
 
 let output_characteristics core ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 3 (6, 26) Draw.gr_sml_ui (ij -- (0,2));
+  Draw.draw_sml_tile_wh 4 3 (Pos.ui_stat_sml ++ (6, 0)) Draw.gr_sml_ui (ij -- (0,2));
   Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_athletic core)) Draw.gr_sml_ui (i+5,j);
   Draw.put_string (Printf.sprintf "%.1f" (Unit.Core.get_reaction core)) Draw.gr_sml_ui (i+5,j-1);
   Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_own_mass core)) Draw.gr_sml_ui (i+5,j-2)
 
 let output_hp core ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 1 (6, 29) Draw.gr_sml_ui ij;
+  Draw.draw_sml_tile_wh 4 1 (Pos.ui_stat_sml ++ (6, 3)) Draw.gr_sml_ui ij;
   Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_hp core)) Draw.gr_sml_ui (i+5,j)
 
 let output_melee melee ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 2 (0, 26) Draw.gr_sml_ui (ij -- (0,1));
+  Draw.draw_sml_tile_wh 4 2 (Pos.ui_stat_sml ++ (0, 0)) Draw.gr_sml_ui (ij -- (0,1));
   let x = (melee.Item.Melee.attrate) (* *. (melee.Item.Melee.duration) *) in
   Draw.put_string (Printf.sprintf "%1.2g" x) Draw.gr_sml_ui (i+5,j);
   Draw.put_string (Printf.sprintf "%1.2g" (melee.Item.Melee.duration)) Draw.gr_sml_ui (i+5,j-1)
 
 let output_ranged optranged ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 2 (0, 28) Draw.gr_sml_ui (ij -- (0,1));
+  Draw.draw_sml_tile_wh 4 2 (Pos.ui_stat_sml ++ (0, 2)) Draw.gr_sml_ui (ij -- (0,1));
   match optranged with
     Some ranged -> 
       Draw.put_string (Printf.sprintf "%1.2g" (ranged.Item.Ranged.dmgmult)) Draw.gr_sml_ui (i+5,j);
@@ -115,11 +135,11 @@ let output_ranged optranged ((i,j) as ij) =
       Draw.put_string "none" Draw.gr_sml_ui (i+5,j)
 
 let output_defense defense ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 2 (0, 30) Draw.gr_sml_ui (ij -- (0,1));
+  Draw.draw_sml_tile_wh 4 2 (Pos.ui_stat_sml ++ (0, 4)) Draw.gr_sml_ui (ij -- (0,1));
   Draw.put_string (Printf.sprintf "%1.2g" defense) Draw.gr_sml_ui (i+5,j)
 
 let output_mobility core ((i,j) as ij) =
-  Draw.draw_sml_tile_wh  4 2 (0, 32) Draw.gr_sml_ui (ij -- (0,1));
+  Draw.draw_sml_tile_wh  4 2 (Pos.ui_stat_sml ++ (0, 6)) Draw.gr_sml_ui (ij -- (0,1));
   Draw.put_string (Printf.sprintf "%1.2g" (Unit.Core.get_fm core)) Draw.gr_sml_ui (i+5,j);
   Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_total_mass core)) Draw.gr_sml_ui (i+5,j-1)
 
@@ -183,7 +203,7 @@ let draw_atlas atlas geo =
                 | _ -> (1,1)
               )
             in
-            (16, 5) ++ (10, 2) ++ dimg
+            Pos.atlas ++ (0, 3) ++ dimg
 
         | _ ->
             biome_img rmp.Atlas.biome 
@@ -196,15 +216,15 @@ let draw_atlas atlas geo =
               let cr, cg, cb = faction_color fac in
               let x = float pop *. 0.07 in
               set_color (x*. cr) (x*. cg) (x*. cb) alpha_marks; 
-              let img = (8, 5) in
+              let img = Pos.atlas ++ (3, 0) in
               Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) 
           | Atlas.StairsUp ->
               set_color 1.0 1.0 1.0 (0.5*.alpha_marks); 
-              let img = (16, 6) in
+              let img = Pos.atlas ++ (4, 0) in
               Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) 
           | Atlas.StairsDown ->
               set_color 1.0 1.0 1.0 (0.5*.alpha_marks); 
-              let img = (17, 6) in
+              let img = Pos.atlas ++ (5, 0) in
               Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) 
         )
         rmp.Atlas.markls;
@@ -221,21 +241,21 @@ let draw_atlas atlas geo =
 
   (* mark current location *)
   set_color 0.9 1.0 0.2 1.0; 
-  Draw.draw_sml_tile (6,5) Draw.gr_atlas (scrloc cur_loc) 
+  Draw.draw_sml_tile_wh 3 3 (Pos.atlas ++ (6,3)) Draw.gr_atlas (scrloc (cur_loc -- (1,1))) 
 
   
 
 let i_see_all = false
 
 let draw_cursor t gr ij = 
-  Draw.draw_sml_tile_wh_vec 4 4 (14, 14) gr ( vec_of_loc ij --. (0.5, 0.5) )
+  Draw.draw_tile_ext (Pos.ui_dyn ++ (12, 0)) gr ij
 
 let draw_target_cursor t gr ij = 
-  Draw.draw_sml_tile_wh_vec 4 4 (10, 14) gr ( vec_of_loc ij --. (0.5, 0.5) )
+  Draw.draw_tile_ext (Pos.ui_dyn ++ (10, 0)) gr ij
 
 let draw_item t obj gr ij =
   let x = obj.Item.imgindex in
-  let img = (9 + x mod 8, 9 + x / 8) in
+  let img = Pos.items ++ (x mod 8, x / 8) in
   match Item.get_mat obj with
     Some Item.DmSteel ->
       let tt = 0.0001 *. float t in
@@ -255,7 +275,7 @@ let draw_item t obj gr ij =
 let draw_container t (w,h) c gr (i,j) = 
   for ii=0 to w-1 do
     for jj=0 to h-1 do
-      Draw.draw_tile (9,8) gr (i+ii,j+jj)
+      Draw.draw_tile (Pos.ui_stat ++ (9,0)) gr (i+ii,j+jj)
     done
   done;
   Item.M.iter (fun k obj -> 
@@ -308,7 +328,7 @@ let draw_projectiles t reg vision =
           else
             set_color (0.1+.0.2*.red) (0.1+.0.2*.green) (0.1+.0.2*.blue) 0.5;
 
-          let img = (18, 32) in
+          let img = 2 %% (Pos.items ++ (0, 13)) in
           Draw.draw_sml_tile_vec (img ++ dimg) Draw.gr_map (pj.Proj.pos ++. dpos); 
 
           (* Draw.draw_bb_vec (9.0, 17.0) pj.Proj.pos; *) 
@@ -316,81 +336,111 @@ let draw_projectiles t reg vision =
     ) ls
 
 (* Stairs *)
-let draw_stairs t reg vision =
-  let ls = reg.R.obj.R.Obj.stairsls in
-  List.iter ( fun (stt, loc) ->
-    
-    let visible_well = is_visible_well vision loc in
-    let was_explored = match Area.get reg.R.explored loc with None -> false | _ -> true in
+let draw_stairs t reg vision (stt, loc) =
+  let visible_well = is_visible_well vision loc in
+  let was_explored = match Area.get reg.R.explored loc with None -> false | _ -> true in
 
-    if visible_well || was_explored then
-    ( let red,green,blue = 1.0, 1.0, 1.0 in
-      if visible_well then
-        set_color red green blue 1.0
-      else
-        set_color (0.3+.0.2*.red) (0.3+.0.2*.green) (0.3+.0.2*.blue) 0.5;
+  if visible_well || was_explored then
+  ( let red,green,blue = 1.0, 1.0, 1.0 in
+    if visible_well then
+      set_color red green blue 1.0
+    else
+      set_color (0.3+.0.2*.red) (0.3+.0.2*.green) (0.3+.0.2*.blue) 1.0;
 
-      let img = match stt with 
-        | R.Obj.StairsUp -> (6,3)
-        | R.Obj.StairsDown -> (7,3) in
+    let img = 
+      Pos.objs ++ 
+      match stt with 
+      | R.Obj.StairsUp -> (0,1)
+      | R.Obj.StairsDown -> (1,1) in
 
-      Draw.draw_tile img Draw.gr_map loc
-    )
-  ) ls
+    Draw.draw_tile_high img Draw.gr_map loc
+  )
 
-(* Area *)
-let draw_area t reg rm vision =
-  let def_ground_img = 
-    match rm.RM.biome with
-      | RM.Swamp -> (9, 1)
-      | RM.Mnt | RM.ForestMnt -> (11, 0)
-      | RM.SnowMnt -> (* (6.0, 4.0) *) (11, 1)
-      | RM.Dungeon -> (13, 0)
-      | _ -> (9, 0)
-  in
-  let def_ground_img_alt = def_ground_img ++ (1, 0) in
+(* Area one tile *)
+let draw_area_tile_floor t reg rm vision (i,j) = 
+  let visible, tile_opt =
+    if Area.get vision (i,j) > 0 || i_see_all then true, Some (Area.get reg.R.a (i,j)) 
+    else false, Area.get reg.R.explored (i,j) in
 
-  set_color 1.0 1.0 1.0 1.0; 
-  for i = 0 to Area.w reg.R.a - 1 do
-    for j = 0 to Area.h reg.R.a - 1 do
+  match tile_opt with
+  | Some tile -> 
+      ( if visible then set_color 1.0 1.0 1.0 1.0 else set_color 0.7 0.7 0.7 0.7;
+  
+        let def_ground_img =
+          Pos.bg ++
+          match rm.RM.biome with
+            | RM.Swamp -> (0, 1)
+            | RM.Mnt | RM.ForestMnt -> (2, 0)
+            | RM.SnowMnt -> (2, 1)
+            | RM.Dungeon -> (4, 0)
+            | _ -> (0, 0)
+        in
+        let def_ground_img_alt = def_ground_img ++ (1, 0) in
 
-      let visible, tile_opt =
-        if Area.get vision (i,j) > 0 || i_see_all then true, Some (Area.get reg.R.a (i,j)) 
-        else false, Area.get reg.R.explored (i,j) in
+        let d_ground_img = match tile with Tile.IcyGround | Tile.SwampyPool -> (0, 1) | _ -> (0, 0) in
+        Draw.draw_tile ((if (i+j) mod 2 = 1 then def_ground_img else def_ground_img_alt) ++ d_ground_img) Draw.gr_map (i,j);
+        
+        let draw_obj dimg = Draw.draw_tile_high (Pos.objs ++ dimg) Draw.gr_map (i,j) in
+        ( match tile with
+          | Tile.WoodenFloor -> draw_obj (6,9) 
+          | Tile.OpenDoor -> draw_obj (6,9)
+          | _ -> () );
+        
+        (* draw items *)
+        if visible then
+        ( match Area.get reg.R.optinv (i,j) with
+          | Some inv -> 
+              for k = 0 to 2 do
+                match Inv.examine 0 k inv with
+                  Some obj -> draw_item t obj Draw.gr_map (i,j)
+                | None -> ()
+              done
+          | None -> ()
+        )
+      )
+  | None -> ()
 
-      match tile_opt with
-      | Some tile -> 
-          ( if visible then set_color 1.0 1.0 1.0 1.0 else set_color 0.7 0.7 0.7 0.7;
 
-            let d_ground_img = match tile with Tile.IcyGround | Tile.SwampyPool -> (0, 1) | _ -> (0, 0) in
-            Draw.draw_tile ((if (i+j) mod 2 = 1 then def_ground_img else def_ground_img_alt) ++ d_ground_img) Draw.gr_map (i,j);
-            ( match tile with
-                Tile.Wall -> Draw.draw_tile (0,3) Draw.gr_map (i,j)
-              | Tile.Tree1 -> Draw.draw_tile (2,3) Draw.gr_map (i,j)
-              | Tile.Tree2 -> Draw.draw_tile (if rm.RM.biome <> RM.SnowMnt then (3,3) else (3,4)) Draw.gr_map (i,j)
-              | Tile.Rock1 -> Draw.draw_tile (if rm.RM.biome <> RM.SnowMnt then (4,3) else (4,4)) Draw.gr_map (i,j)
-              | Tile.Rock2 -> Draw.draw_tile (if rm.RM.biome <> RM.SnowMnt then (5,3) else (5,4)) Draw.gr_map (i,j)
-              | Tile.WoodenFloor -> Draw.draw_tile (1,3) Draw.gr_map (i,j)
-              | Tile.OpenDoor -> Draw.draw_tile (1,4) Draw.gr_map (i,j)
-              | Tile.DungeonWall -> Draw.draw_tile (14,1) Draw.gr_map (i,j)
-              | Tile.DungeonOpenDoor -> Draw.draw_tile (15,2) Draw.gr_map (i,j)
-              | _ -> () );
+let door_is_east_west a (i,j) =
+  let g loc = if not (Area.is_within a loc) || Area.get a loc |> Tile.classify |> Tile.can_walk then 1 else 0 in
+  g (i-1,j) + g (i+1,j) >= g (i,j-1) + g (i, j+1) 
 
-            (* draw items *)
-            if visible then
-            ( match Area.get reg.R.optinv (i,j) with
-              | Some inv -> 
-                  for k = 0 to 2 do
-                    match Inv.examine 0 k inv with
-                      Some obj -> draw_item t obj Draw.gr_map (i,j)
-                    | None -> ()
-                  done
-              | None -> ()
-            )
-          )
-      | None -> ()
-    done
-  done
+(* Area one tile *)
+let draw_area_tile_obstacles t reg rm vision (i,j) = 
+  let visible, tile_opt =
+    if Area.get vision (i,j) > 0 || i_see_all then true, Some (Area.get reg.R.a (i,j)) 
+    else false, Area.get reg.R.explored (i,j) in
+
+  match tile_opt with
+  | Some tile -> 
+      ( if visible then set_color 1.0 1.0 1.0 1.0 else set_color 0.7 0.7 0.7 1.0;
+  
+        let draw_obj dimg = Draw.draw_tile_high (Pos.objs ++ dimg) Draw.gr_map (i,j) in
+        ( match tile with
+            Tile.Wall -> draw_obj (0,9)
+          | Tile.OpenDoor -> 
+              ( if door_is_east_west reg.R.a (i,j) then 
+                ( draw_obj (4,9);
+                  Draw.draw_tile_high (Pos.objs ++ (5,9)) Draw.gr_map (i+1,j) )
+                else 
+                  draw_obj (2,9)
+              )
+          | Tile.Tree1 -> draw_obj (0,3)
+          | Tile.Tree2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (1,3) else (1,5))
+          | Tile.Rock1 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (2,3) else (2,5))
+          | Tile.Rock2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (3,3) else (3,5))
+          | Tile.DungeonWall -> draw_obj (0,7) 
+          | Tile.DungeonOpenDoor -> 
+              ( if door_is_east_west reg.R.a (i,j) then 
+                ( draw_obj (4,7);
+                  Draw.draw_tile_high (Pos.objs ++ (5,7)) Draw.gr_map (i+1,j) )
+                else 
+                  draw_obj (2,7)
+              )
+          | _ -> () );
+      )
+  | None -> ()
+
 
 (* Notification *)
 let draw_ntfy time u = 
@@ -409,15 +459,155 @@ let draw_ntfy time u =
         Draw.put_string_vec Unit.(Printf.sprintf "%i" (round x)) Draw.gr_map (u.Unit.pos ++. (0.5*.(crit +. 0.1) *. sin(t), t*.0.4)) )
   ) u.Unit.ntfy
 
+
+let draw_unit t s reg eval_unit_strength u_controlled_strength u =
+  let visible_well = is_visible_well s.State.vision u.Unit.loc in
+  let visible_somewhat = is_visible_somewhat reg.R.a s.State.vision u.Unit.pos in
+  if visible_well || visible_somewhat then
+  (
+
+    if (Unit.get_controller u <> Some s.State.controller_id) then
+    ( 
+      let red, green, blue = faction_color (Unit.get_faction u) in
+      if visible_well then
+        set_color red green blue 1.0
+      else
+        set_color (0.1+.0.2*.red) (0.1+.0.2*.green) (0.1+.0.2*.blue) 0.5;
+
+      let species = Unit.get_sp u in 
+      let img = species_img (species) ++ 
+        ( match species, Unit.get_gender u with
+          | (Species.Hum, _), Some Unit.Core.Female -> (0, 1)
+          | _ -> (0, 0)
+        ) in
+
+      Draw.draw_tile_vec img Draw.gr_map (u.Unit.pos); 
+    
+      (* actors badge *)
+      ( match u.Unit.optaid with 
+          Some _ ->
+            Draw.draw_tile_vec (Pos.ui_dyn ++ (0, 1)) Draw.gr_map (u.Unit.pos); 
+        | _ -> ()
+      );
+
+      (* danger bars *)
+      if visible_well then
+      ( let u_strength = eval_unit_strength u in
+        let ratio = u_strength /. u_controlled_strength in
+        
+        set_color 1.0 1.0 1.0 0.7;
+       
+        let opt_img =
+          if ratio > 4.0 then 
+            Some (Pos.ui_dyn ++ (2, 0))
+          else if ratio > 1.0 then 
+            Some (Pos.ui_dyn ++ (1, 0))
+          else if ratio > 0.25 then 
+            Some (Pos.ui_dyn ++ (0, 0))
+          else
+            None
+        in  
+        ( match opt_img with
+          | Some img -> Draw.draw_tile_vec img Draw.gr_map (u.Unit.pos)
+          | _ -> ()
+        )
+      );
+      
+      (*
+      match Unit.cur_dest_loc u with
+        Some loc -> 
+          set_color 1.0 0.0 0.0 0.4; 
+          Draw.draw_tile (3, 6) Draw.gr_map loc
+      | None -> ()
+      *)
+    )
+    else
+    ( (* human-controlled unit *) 
+      set_color 1.0 1.0 1.0 1.0; 
+      let img = Pos.u_hum ++ 
+        ( match Unit.get_sp u, Unit.get_gender u with
+          | (Species.Hum, _), Some Unit.Core.Female -> (0, 1)
+          | _ -> (0, 0)
+        ) in
+      if s.State.debug then
+        Draw.draw_tile (10, 17) Draw.gr_map (u.Unit.loc);
+      Draw.draw_tile_vec img Draw.gr_map (u.Unit.pos);
+   
+      (* Player's Stats *)
+      let char_ij = (50, 32) in
+      output_characteristics (Unit.get_core u) (char_ij ++ (0,0));
+      output_hp (Unit.get_core u) (char_ij ++ (0,-4));
+      output_mobility (Unit.get_core u) (char_ij ++ (0,-6));
+      output_melee (Unit.get_melee u) (char_ij ++ (0,-9));
+      output_ranged (Unit.get_ranged u) (char_ij ++ (0,-12));
+      output_defense (Unit.get_defense u) (char_ij ++ (0, -15));
+
+      let fnctq = Fencing.get_tq u.Unit.fnctqn in
+      Draw.put_string Unit.(Printf.sprintf "%s" (fnctq.Fencing.name)) Draw.gr_sml_ui (40,0);
+
+      (* simplified *)
+      set_color 0.34 0.34 0.34 1.0;
+      Draw.put_string "Equipped:" Draw.gr_sml_ui (inv_coords_sml ++ (-12,0));
+      set_color 1.0 1.0 1.0 1.0;
+      let inv = Unit.get_inv u in
+      let w,h = 12,1 in
+      Item.M.iter (fun ci c -> 
+        if ci = 0 then
+          draw_container_auto_width t (w,h) c Draw.gr_ui (inv_coords ++ (0,-h*ci))
+      ) inv.Inv.cnt
+      
+    );
+  );
+
+  (* attack animation *)
+  match u.Unit.ac with
+    (Timed (_,tp,te, Attack (tq, dir_index)))::_ -> 
+        let tgtls, stage = Fencing.get_tgtls_and_stage 0.0 tp te tq dir_index in
+
+        (*
+        let j = floor (5.0 *. (tp /. te) ) in
+        let j_alt = floor (5.0 *. stage ) in
+        *)
+        let j_x = int_of_float (floor (5.0 *. (0.5*. stage +. 0.5 *. tp/.te) )) in
+      
+        List.iter (fun tgt ->
+          set_color 1.0 0.7 0.6 (0.1 +. 0.3 *. tgt.Fencing.magnitude); 
+          let loc' = u.Unit.loc ++ tgt.Fencing.dloc in
+          if Area.is_within s.State.vision loc' && Area.get s.State.vision (loc') > 0 then
+          ( (* Draw.draw_bb (4.0 +. j, 6.0) (loc');*)
+            Draw.draw_tile (Pos.ui_dyn ++ (4,0) ++ (j_x,0)) Draw.gr_map (loc') )
+        ) tgtls
+  | _ -> ()
+
+
 let draw_state t s = 
   set_color 1.0 1.0 1.0 1.0;
   let reg = G.curr s.State.geo in
   let cur_rm = s.State.geo.G.rm.(s.State.geo.G.currid) in
+
+  let area_w = Area.w reg.R.a in
+  let area_h = Area.h reg.R.a in
+
+  (* units array *)
+  let unit_ls_arr = Array.make_matrix area_w area_h [] in 
+  E.iter ( fun u ->
+    let (i,j) = u.Unit.loc in
+    unit_ls_arr.(i).(j) <- u :: unit_ls_arr.(i).(j) 
+  ) reg.R.e;
+
+  (* stairs array *)
+  let stairs_arr = Array.make_matrix area_w area_h None in
+  List.iter ( fun (stt, (i,j)) -> 
+    stairs_arr.(i).(j) <- Some stt
+  ) reg.R.obj.R.Obj.stairsls;
+
+  (*
   draw_area t reg cur_rm s.State.vision;
-  
+
   (* draw stairs *)
   set_color 1.0 1.0 1.0 1.0; 
   draw_stairs t reg s.State.vision;
+  *)
 
   (* units *)
   set_color 0.5 0.6 0.3 1.0; 
@@ -431,140 +621,91 @@ let draw_state t s =
     | Some u -> eval_unit_strength u
     | None -> infinity 
   in
-  E.iter ( fun u ->
-      (*
-      glColor4f 1.0 1.0 1.0 0.2; 
-      Draw.draw_bb (2.0, 6.0) u.Unit.loc;
-      glColor4f 1.0 1.0 1.0 1.0; 
-      Draw.draw_bb_vec (2.0, 6.0) u.Unit.pos;
-      *)
-      
-      (* only visible units *)
-      let visible_well = is_visible_well s.State.vision u.Unit.loc in
-      let visible_somewhat = is_visible_somewhat reg.R.a s.State.vision u.Unit.pos in
 
-      if visible_well || visible_somewhat then
-      (
+  for j = area_h-1 downto 0 do
+    for i = 0 to area_w-1 do
+      let ij = (i,j) in
 
-        if (Unit.get_controller u <> Some s.State.controller_id) then
-        ( 
-          let red, green, blue = faction_color (Unit.get_faction u) in
-          if visible_well then
-            set_color red green blue 1.0
-          else
-            set_color (0.1+.0.2*.red) (0.1+.0.2*.green) (0.1+.0.2*.blue) 0.5;
-
-          let species = Unit.get_sp u in 
-          let img = species_img (species) ++ 
-            ( match species, Unit.get_gender u with
-              | (Species.Hum, _), Some Unit.Core.Female -> (0, 1)
-              | _ -> (0, 0)
-            ) in
-
-          Draw.draw_tile_vec img Draw.gr_map (u.Unit.pos); 
-        
-          (* actors badge *)
-          ( match u.Unit.optaid with 
-              Some _ ->
-                Draw.draw_tile_vec (0, 10) Draw.gr_map (u.Unit.pos); 
-            | _ -> ()
-          );
-
-          (* danger bars *)
-          if visible_well then
-          ( let u_strength = eval_unit_strength u in
-            let ratio = u_strength /. u_controlled_strength in
-            
-            set_color 1.0 1.0 1.0 0.7;
-            
-            if ratio > 4.0 then 
-              Draw.draw_tile_vec (2, 9) Draw.gr_map (u.Unit.pos)
-            else if ratio > 1.0 then 
-              Draw.draw_tile_vec (1, 9) Draw.gr_map (u.Unit.pos)
-            else if ratio > 0.25 then 
-              Draw.draw_tile_vec (0, 9) Draw.gr_map (u.Unit.pos)
-          );
-          
-          (*
-          match Unit.cur_dest_loc u with
-            Some loc -> 
-              set_color 1.0 0.0 0.0 0.4; 
-              Draw.draw_tile (3, 6) Draw.gr_map loc
-          | None -> ()
-          *)
-        )
-        else
-        ( (* human-controlled unit *) 
-          set_color 1.0 1.0 1.0 1.0; 
-          let img = (0, 5) ++ 
-            ( match Unit.get_sp u, Unit.get_gender u with
-              | (Species.Hum, _), Some Unit.Core.Female -> (0, 1)
-              | _ -> (0, 0)
-            ) in
-          if s.State.debug then
-            Draw.draw_tile (10, 17) Draw.gr_map (u.Unit.loc);
-          Draw.draw_tile_vec img Draw.gr_map (u.Unit.pos);
-       
-          (* Player's Stats *)
-          let char_ij = (50, 32) in
-          output_characteristics (Unit.get_core u) (char_ij ++ (0,0));
-          output_hp (Unit.get_core u) (char_ij ++ (0,-4));
-          output_mobility (Unit.get_core u) (char_ij ++ (0,-6));
-          output_melee (Unit.get_melee u) (char_ij ++ (0,-9));
-          output_ranged (Unit.get_ranged u) (char_ij ++ (0,-12));
-          output_defense (Unit.get_defense u) (char_ij ++ (0, -15));
-
-          let fnctq = Fencing.get_tq u.Unit.fnctqn in
-          Draw.put_string Unit.(Printf.sprintf "%s" (fnctq.Fencing.name)) Draw.gr_sml_ui (40,0);
- 
-          (* Draw player's inventory *)
-          
-          (*
-          draw_inventory t (12,1) u.Unit.core.Unit.Core.inv Draw.gr_ui inv_coords;
-          (* Draw the ground inventory *)
-          ( match Area.get reg.R.optinv u.Unit.loc with
-              Some inv ->  
-                draw_inventory t (12,1) inv Draw.gr_map (26,17)
-            | _ -> () )
-          *)
-
-          (* simplified *)
-          set_color 0.24 0.24 0.24 1.0;
-          Draw.put_string "Equipped:" Draw.gr_sml_ui (inv_coords_sml ++ (-12,1));
-          set_color 1.0 1.0 1.0 1.0;
-          let inv = Unit.get_inv u in
-          let w,h = 12,1 in
-          Item.M.iter (fun ci c -> 
-            if ci = 0 then
-              draw_container_auto_width t (w,h) c Draw.gr_ui (inv_coords ++ (0,-h*ci))
-          ) inv.Inv.cnt
-          
-        );
+      (* tile *)
+      draw_area_tile_floor t reg cur_rm s.State.vision ij;
+    
+      (* stairs floor *)
+      ( match stairs_arr.(i).(j) with
+        | Some stt -> draw_stairs t reg s.State.vision (stt, ij) 
+        | None -> ()
       );
 
-      (* attack animation *)
-      match u.Unit.ac with
-        (Timed (_,tp,te, Attack (tq, dir_index)))::_ -> 
-            let tgtls, stage = Fencing.get_tgtls_and_stage 0.0 tp te tq dir_index in
+      (* units *)
+      let draw_units_at jj =
+        List.iter ( fun u ->
+            draw_unit t s reg eval_unit_strength u_controlled_strength u 
+          ) unit_ls_arr.(i).(jj)
+      in
+      if j < area_h-1 then ( draw_units_at (j+1) );
+      if j = 0 then draw_units_at j;
+    done;
 
-            (*
-            let j = floor (5.0 *. (tp /. te) ) in
-            let j_alt = floor (5.0 *. stage ) in
-            *)
-            let j_x = int_of_float (floor (5.0 *. (0.5*. stage +. 0.5 *. tp/.te) )) in
+    for i = 0 to area_w-1 do
+      (* tile obstacles *)
+      draw_area_tile_obstacles t reg cur_rm s.State.vision (i,j);
+    done;
+  done;
+  
+  (* mist *)
+  (
+    let mist_img = (15,9) in
+    let known loc = Area.is_within reg.R.a loc && match Area.get reg.R.explored loc with Some _ -> true | _ -> false in
+    
+    let rnd (i,j) = cur_rm.RM.seed + + (i * 40591) lxor (j * 3571) in
+    let timed_rnd (i,j) = ((t+rnd(i,j))/400) + rnd (i,j) in
+
+    for j = area_h-1 downto 0 do
+      for i = 0 to area_w-1 do
+        let nb = [(i+1,j); (i,j+1); (i-1,j); (i,j-1)] in
+        if not (known (i,j)) then
+        ( let img = Pos.objs ++ mist_img in 
+          (*
+          set_color 0.64 0.67 0.7 (0.6 +. 0.02 *. sin (float (t * (1000 + rnd (i,j) mod 2000) ) *. 0.000001));
+          *)
+
+          let phi_temporal =
+            0.01 *. sin (float (t * (2000 + rnd (i,j) mod 1000) ) *. 0.000001) 
+            +. 0.1 *. sin (float t *. 0.0002)
+          in
+
           
-            List.iter (fun tgt ->
-              set_color 1.0 0.7 0.6 (0.1 +. 0.3 *. tgt.Fencing.magnitude); 
-              let loc' = u.Unit.loc ++ tgt.Fencing.dloc in
-              if Area.is_within s.State.vision loc' && Area.get s.State.vision (loc') > 0 then
-              ( (* Draw.draw_bb (4.0 +. j, 6.0) (loc');*)
-                Draw.draw_tile (4 + j_x, 9) Draw.gr_map (loc') )
-            ) tgtls
+          let r, g, b = 
+            match cur_rm.RM.biome with
+            | Dungeon -> 0.74, 0.80, 0.80 
+            | _ -> 0.86, 0.84, 0.80
+          in
+         
+          (*
+          let timed_rnd ij = rnd ij in
+          *)
+          (*
+          let r, g, b = 0.1, 0.1, 0.1 in
+          *)
 
-      | _ -> ()
-      
-  ) reg.R.e;
- 
+          set_color r g b (0.6 +. phi_temporal);
+          Draw.draw_tile img Draw.gr_map (i,j);
+          
+          set_color r g b (0.90 *. (0.6 +. phi_temporal));
+          let x = (timed_rnd(i,j) mod 1117) in
+          if x < 6 then
+          ( let dimg = (0, x+1) in
+            Draw.draw_tile (img ++ dimg) Draw.gr_map (i,j);
+          );
+          List.iteri (fun v loc -> 
+            if known loc then
+              Draw.draw_tile (img++(v+1, (timed_rnd (i,j)) mod 6 )) Draw.gr_map loc
+          ) nb
+        )
+        
+      done
+    done
+  );
+
   (* notifications *)
   E.iter ( fun u ->
     let visible_well = is_visible_well s.State.vision u.Unit.loc in
@@ -614,7 +755,7 @@ let draw_state t s =
         ( s.State.pol.Pol.prop.(i).Pol.fsp = Undead && rm.RM.alloc.Mov.fac.(i) > 0 )
       ) false 0 (s.State.pol.Pol.facnum - 1) in
     set_color 1.0 1.0 1.0 1.0;
-    let img = if b then (5,11) else (5,12) in
+    let img = Pos.ui_stat ++ (6,0) ++ if b then (0,0) else (0,1) in
     let ij = (28,1) in
     Draw.draw_tile img Draw.gr_ui ij;
     Draw.draw_tile (img ++ (1,0)) Draw.gr_ui (ij ++ (1,0))
@@ -632,7 +773,7 @@ let draw_state t s =
       (* cursor *)
       set_color 1.0 1.0 1.0 1.0; 
       
-      draw_target_cursor 0 Draw.gr_map (s.State.cursor)
+      draw_target_cursor t Draw.gr_map (s.State.cursor)
        
 
   | State.CtrlM.Inventory (invclass,ic,ii,u,_) ->
@@ -646,7 +787,7 @@ let draw_state t s =
       (
         let w = 14 in
         let h = let _,y = shift_ground_inv in -y + 3 in
-        let img_bg = (7, 11) in
+        let img_bg = Pos.ui_stat ++ (8, 0) in
         Draw.draw_tile_stretch_wh (w, h) 1 1 img_bg Draw.gr_ui (inv_coords -- (1,h-2))
       );
 
@@ -676,7 +817,7 @@ let draw_state t s =
       );
 
       (* Add labels *)
-      set_color 0.24 0.24 0.24 1.0;
+      set_color 0.34 0.34 0.34 1.0;
       Draw.put_string "0." Draw.gr_sml_ui (inv_coords_sml ++ shift_ground_inv_sml -- (2,0)); 
       
       Item.M.iter (fun i c -> 
