@@ -433,9 +433,9 @@ let generate info blocks_arr w h num fnum fnrow =
     )
   in
   
-  let b,ngend = add_more num fnum fnrow b_initial in
+  let b, n_left_to_build = add_more num fnum fnrow b_initial in
   block_postprocess info b;
-  Some (b,ngend)
+  Some (b, num - n_left_to_build) 
 
 
 let generate_auto info blocks_arr w h =

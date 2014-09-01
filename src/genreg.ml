@@ -114,7 +114,7 @@ let charmap_inv = function
 (* returns area and loc0 *)
 let build_dungeon cons_id charmap none_tile w h wtogen htogen =
   let cons = Carve.constructors.(cons_id) in
-  match Carve.use_constructor cons wtogen htogen 3 with
+  match Carve.use_constructor cons wtogen htogen 5 with
   | Some res -> 
       let actualw = Carve.(res.rect.Rect.w) in
       let actualh = Carve.(res.rect.Rect.h) in

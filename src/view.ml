@@ -623,6 +623,8 @@ let draw_state t s =
   in
 
   for j = area_h-1 downto 0 do
+    
+    (* floor, items, and stairs *)
     for i = 0 to area_w-1 do
       let ij = (i,j) in
 
@@ -634,15 +636,17 @@ let draw_state t s =
         | Some stt -> draw_stairs t reg s.State.vision (stt, ij) 
         | None -> ()
       );
+    done;
 
-      (* units *)
-      let draw_units_at jj =
-        List.iter ( fun u ->
-            draw_unit t s reg eval_unit_strength u_controlled_strength u 
-          ) unit_ls_arr.(i).(jj)
-      in
-      if j < area_h-1 then ( draw_units_at (j+1) );
-      if j = 0 then draw_units_at j;
+    (* units *)
+    let draw_units_at i jj =
+      List.iter ( fun u ->
+          draw_unit t s reg eval_unit_strength u_controlled_strength u 
+        ) unit_ls_arr.(i).(jj)
+    in
+    for i = 0 to area_w-1 do
+      if j < area_h-1 then ( draw_units_at i (j+1) );
+      if j = 0 then draw_units_at i j;
     done;
 
     for i = 0 to area_w-1 do
@@ -657,47 +661,50 @@ let draw_state t s =
     let known loc = Area.is_within reg.R.a loc && match Area.get reg.R.explored loc with Some _ -> true | _ -> false in
     
     let rnd (i,j) = cur_rm.RM.seed + + (i * 40591) lxor (j * 3571) in
-    let timed_rnd (i,j) = ((t+rnd(i,j))/400) + rnd (i,j) in
+    let timed_rnd (i,j) = ((t+rnd(i,j))/700) + rnd (i,j) in
+   
+    (* base color *)
+    let r, g, b = 
+      match cur_rm.RM.biome with
+      | RM.Dungeon -> 0.74, 0.80, 0.80 
+      | _ -> 0.86, 0.84, 0.80
+    in
+       
+    let mist_fill_all = false in
+
+    let on_the_edge (i,j) =
+      not (known (i,j)) && ( mist_fill_all || 
+        List.exists known 
+          [(i+1,j); (i,j+1); (i-1,j); (i,j-1); 
+           (* (i+1,j+1); (i+1,j-1); (i-1,j+1); (i-1,j-1) *)]
+      )
+    in
 
     for j = area_h-1 downto 0 do
       for i = 0 to area_w-1 do
         let nb = [(i+1,j); (i,j+1); (i-1,j); (i,j-1)] in
-        if not (known (i,j)) then
+        
+        if on_the_edge (i,j) then
         ( let img = Pos.objs ++ mist_img in 
-          (*
-          set_color 0.64 0.67 0.7 (0.6 +. 0.02 *. sin (float (t * (1000 + rnd (i,j) mod 2000) ) *. 0.000001));
-          *)
 
           let phi_temporal =
-            0.01 *. sin (float (t * (2000 + rnd (i,j) mod 1000) ) *. 0.000001) 
+            0.002 *. sin (float (t * (2000 + rnd (i,j) mod 1000) ) *. 0.000001) 
             +. 0.1 *. sin (float t *. 0.0002)
           in
 
-          
-          let r, g, b = 
-            match cur_rm.RM.biome with
-            | Dungeon -> 0.74, 0.80, 0.80 
-            | _ -> 0.86, 0.84, 0.80
-          in
-         
-          (*
-          let timed_rnd ij = rnd ij in
-          *)
-          (*
-          let r, g, b = 0.1, 0.1, 0.1 in
-          *)
+          let alpha = 0.65 in
 
-          set_color r g b (0.6 +. phi_temporal);
+          set_color r g b (alpha +. phi_temporal);
           Draw.draw_tile img Draw.gr_map (i,j);
           
-          set_color r g b (0.90 *. (0.6 +. phi_temporal));
+          set_color r g b (0.90 *. (alpha +. phi_temporal));
           let x = (timed_rnd(i,j) mod 1117) in
           if x < 6 then
           ( let dimg = (0, x+1) in
             Draw.draw_tile (img ++ dimg) Draw.gr_map (i,j);
           );
           List.iteri (fun v loc -> 
-            if known loc then
+            if not (on_the_edge loc) then
               Draw.draw_tile (img++(v+1, (timed_rnd (i,j)) mod 6 )) Draw.gr_map loc
           ) nb
         )

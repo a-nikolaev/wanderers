@@ -354,7 +354,7 @@ module Coll = struct
         let weight = (sword_weight s) *. 2.0 in
         let mat = Steel in 
         let prop = PS.empty
-          |> PS.add (melee (s*.1.8) 1.3)
+          |> PS.add (melee (s*.1.8) 1.2)
           |> PS.add (`Defense (0.08 +. 0.02 *. float (size-3)))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 

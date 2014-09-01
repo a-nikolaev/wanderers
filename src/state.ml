@@ -45,8 +45,6 @@ module Options = struct
 
   let speedup ({game_speed}) = {game_speed = min (game_speed + 1) 10}
   let slowdown ({game_speed}) = {game_speed = max (game_speed - 1) (-10)}
-
-
 end
 
 type t =
@@ -103,12 +101,6 @@ let make w h debug =
     let len = geo_w * geo_h in
 
     (* ok locations *)
-    let ls = 
-      fold_lim (fun ls i ->
-        let x = Global.fget geo i player_faction in
-        if x > 3 then i::ls else ls
-      ) [] 0 (len-1) in
-    
     let find_good_rid () =
       let best_rid, best_val =
         let centerxy = (w/2, h/2) in
@@ -116,11 +108,13 @@ let make w h debug =
           let rz,(rxy) = geo.G.loc.(rid) in
           let centrality = 
             if rz = 0 then
-              10 / (1 + (loc_manhattan (rxy -- centerxy))/5)
-            else 0 in
-          let v' = Global.fget geo i player_faction + centrality in
+              let md = loc_manhattan centerxy in
+              10.0 *. float (md - loc_manhattan (rxy -- centerxy)) /. float md
+            else 0.0 in
+          let friends = float (Global.fget geo i player_faction) in 
+          let v' = friends +. centrality in
           if v' > v then (i,v') else (rid,v)
-        ) (Random.int len,-1) 0 (len-1) in
+        ) (Random.int len, -1.0) 0 (G.length geo - 1) in
       best_rid
     in
     (*
