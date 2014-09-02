@@ -44,6 +44,7 @@ let process_key_pressed k = function
         | K_UP, PRESSED -> if ctrl then g (Msg.Attack 1) else g Msg.Up
         | K_DOWN, PRESSED -> if ctrl then g (Msg.Attack 3) else g Msg.Down
         | K_ESCAPE, PRESSED -> g Msg.Cancel
+        | K_RETURN, PRESSED -> g Msg.Confirm
         | _, PRESSED -> 
           ( if (k.unicode land 0xFF80) = 0 then
             ( let x = k.unicode land 0x7F in
@@ -68,6 +69,7 @@ let process_key_pressed k = function
               | '1' -> g (Msg.Num 1)
               | '2' -> g (Msg.Num 2)
               | 'f' -> g Msg.Fire
+              | 'v' -> g Msg.Look
               | '<' -> g Msg.UpStairs
               | '>' -> g Msg.DownStairs
               | ',' -> g Msg.ScrollBackward

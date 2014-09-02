@@ -334,8 +334,9 @@ let sim_one pol a ga =
 let run accept_prob pol (geo, astr) = 
   let num = Astr.get_actors_num astr in
 
+  (*
   Printf.printf "actors: %i\n%!" num;
-
+  *)
   let simnum = round_prob (float num *. accept_prob) in
 
   fold_lim (fun ((acc_geo, acc_astr) as acc) _ -> 

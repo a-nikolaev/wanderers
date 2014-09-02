@@ -383,7 +383,7 @@ let draw_area_tile_floor t reg rm vision (i,j) =
         let draw_obj dimg = Draw.draw_tile_high (Pos.objs ++ dimg) Draw.gr_map (i,j) in
         ( match tile with
           | Tile.WoodenFloor -> draw_obj (6,9) 
-          | Tile.OpenDoor -> draw_obj (6,9)
+          | Tile.Door _ -> draw_obj (6,9)
           | _ -> () );
         
         (* draw items *)
@@ -416,27 +416,29 @@ let draw_area_tile_obstacles t reg rm vision (i,j) =
       ( if visible then set_color 1.0 1.0 1.0 1.0 else set_color 0.7 0.7 0.7 1.0;
   
         let draw_obj dimg = Draw.draw_tile_high (Pos.objs ++ dimg) Draw.gr_map (i,j) in
+        
+        let draw_door ds img =
+          let east_west = door_is_east_west reg.R.a (i,j) in
+          match ds with 
+          | Tile.IsClosed -> 
+              let d_east_west = if east_west then (2,0) else (0,0) in
+              draw_obj (img ++ d_east_west ++ (-1,0)) 
+          | Tile.IsOpen ->
+            if east_west then
+            ( draw_obj (img ++ (2,0));
+              Draw.draw_tile_high (Pos.objs ++ img ++ (3,0)) Draw.gr_map (i+1,j) )
+            else 
+              draw_obj img 
+        in
         ( match tile with
             Tile.Wall -> draw_obj (0,9)
-          | Tile.OpenDoor -> 
-              ( if door_is_east_west reg.R.a (i,j) then 
-                ( draw_obj (4,9);
-                  Draw.draw_tile_high (Pos.objs ++ (5,9)) Draw.gr_map (i+1,j) )
-                else 
-                  draw_obj (2,9)
-              )
+          | Tile.Door ds -> draw_door ds (2,9)
+          | Tile.DungeonDoor ds -> draw_door ds (2,7) 
           | Tile.Tree1 -> draw_obj (0,3)
           | Tile.Tree2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (1,3) else (1,5))
           | Tile.Rock1 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (2,3) else (2,5))
           | Tile.Rock2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (3,3) else (3,5))
           | Tile.DungeonWall -> draw_obj (0,7) 
-          | Tile.DungeonOpenDoor -> 
-              ( if door_is_east_west reg.R.a (i,j) then 
-                ( draw_obj (4,7);
-                  Draw.draw_tile_high (Pos.objs ++ (5,7)) Draw.gr_map (i+1,j) )
-                else 
-                  draw_obj (2,7)
-              )
           | _ -> () );
       )
   | None -> ()
@@ -779,8 +781,12 @@ let draw_state t s =
   | State.CtrlM.Target _ -> 
       (* cursor *)
       set_color 1.0 1.0 1.0 1.0; 
-      
-      draw_target_cursor t Draw.gr_map (s.State.cursor)
+      draw_target_cursor t Draw.gr_map (s.State.target_cursor)
+  
+  | State.CtrlM.Look _ -> 
+      (* cursor *)
+      set_color 1.0 1.0 1.0 1.0; 
+      draw_cursor t Draw.gr_map (s.State.look_cursor)
        
 
   | State.CtrlM.Inventory (invclass,ic,ii,u,_) ->

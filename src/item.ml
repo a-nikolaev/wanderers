@@ -33,8 +33,11 @@ end
 module Melee = struct
   type t = {attrate: float; duration: float;}
 
-  let join {attrate=ar1; duration=d1} {attrate=ar2; duration=d2} = 
+  let join_simple {attrate=ar1; duration=d1} {attrate=ar2; duration=d2} = 
     {attrate=ar1 +. ar2; duration = max d1 d2}
+  
+  let join_max {attrate=ar1; duration=d1} {attrate=ar2; duration=d2} = 
+    {attrate = max ar1 ar2; duration = max d1 d2}
 end
 
 type prop = [ `Melee of Melee.t | `Defense of float | `Weight of float | `Material of mat 
@@ -348,14 +351,14 @@ module Coll = struct
           |> PS.add (`Material mat) in
         {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price}
     | 5 -> (* polearm *)
-        let size = 3 + Random.int 3 in
-        let price = stdprice size in
+        let size = 4 + Random.int 3 in
+        let price = stdprice (size-1) in
         let s = float size in
-        let weight = (sword_weight s) *. 2.0 in
+        let weight = (sword_weight s) *. 1.1 in
         let mat = Steel in 
         let prop = PS.empty
-          |> PS.add (melee (s*.1.8) 1.2)
-          |> PS.add (`Defense (0.08 +. 0.02 *. float (size-3)))
+          |> PS.add (melee (s*.1.0) 1.0)
+          |> PS.add (`Defense (0.08 +. 0.02 *. float (size-4)))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in

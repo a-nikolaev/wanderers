@@ -49,7 +49,9 @@ Not implemented yet:
 `Space` Wait   
 `i` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
-`<` `>` Use stairs    
+`v` Look mode (`v` or `Enter` to open/close doors, `f` for ranged attack, `Esc` to cancel)   
+`<` `>` Use stairs   
+`Esc` or `q` Cancel
 `Ctrl+Q` Save and quit   
 
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,

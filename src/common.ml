@@ -40,10 +40,12 @@ module Area = struct
 end
 
 module Tile = struct
+  type door_state = IsOpen | IsClosed
+
   type t = Grass | Wall | Tree1 | Tree2 | Rock1 | Rock2
     | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
-    | WoodenFloor | OpenDoor 
-    | DungeonFloor | DungeonWall | DungeonOpenDoor 
+    | WoodenFloor | Door of door_state 
+    | DungeonFloor | DungeonWall | DungeonDoor of door_state
 
   let get_traction = function
     | IcyGround -> 0.38
@@ -55,20 +57,25 @@ module Tile = struct
     | SwampyPool -> 2.1
     | _ -> 1.0
 
-  type tile_class = CFloor | CWall
+  type tile_class = CFloor | CWall | CDoor of door_state
 
   let classify = function
     | Grass | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
-    | WoodenFloor | OpenDoor | DungeonFloor | DungeonOpenDoor -> CFloor
+    | WoodenFloor | DungeonFloor -> CFloor
     | Wall | Tree1 | Tree2 | Rock1 | Rock2 | DungeonWall -> CWall
+    | Door s | DungeonDoor s -> CDoor s
+
+  let is_a_door = function
+    CDoor _ -> true
+  | _ -> false
 
   let can_walk = function
-    CFloor -> true
-  | CWall -> false
+    CFloor | CDoor IsOpen -> true
+  | CWall | CDoor IsClosed -> false
 
   let can_look = function
-    CFloor -> true
-  | CWall -> false
+    CFloor | CDoor IsOpen -> true
+  | CWall | CDoor IsClosed -> false
 end
 
 let is_walkable area loc =
@@ -96,10 +103,16 @@ type path = loc list
 
 type timed_action = Attack of (Fencing.technique * int) | Rest | Prepare of action
 
-and action = Walk of (path*float) | Run of (path*float) | Wait of (loc*float) 
+and op_obj_type = OpObjOpen | OpObjClose
+
+and action = 
+  | Walk of (path*float) 
+  | Run of (path*float) 
+  | Wait of (loc*float) 
   | Lookaround of int
   | Timed of ((loc option)*float*float*timed_action)
-  | FireProj of (loc)
+  | FireProj of loc
+  | OperateObj of (loc * op_obj_type)
 
 (* faction specialization *)
 type fac_spec = Humanoid | Domestic | Wildlife | Undead
@@ -236,17 +249,27 @@ module Unit = struct
       let addition = Item.Melee.({attrate = uc.prop.basedmg; duration = 0.0;}) in
       match Inv.container 0 uc.inv with
       | Some cnt -> 
-          let m = 
+          let accum = 
             Item.Cnt.fold 
             ( fun acc _ obj ->
                 ( match acc, Item.get_melee obj with 
-                    Some accm, Some m -> Some (Item.Melee.join accm m)
-                  | None, x -> x
+                    (Some (acc_sum, acc_max)), Some m -> 
+                      Item.Melee.(Some (join_simple acc_sum m, join_max acc_max m))
+                  | None, Some m -> (Some (m, m))
                   | x, _ -> x
                 )
             )
-            None cnt.Item.Cnt.item in
-          (match m with Some m -> Item.Melee.join m addition | None -> default)
+            None cnt.Item.Cnt.item 
+          in
+          ( match accum with 
+            | Some (msum, mmax) ->
+                (* num = the number of weapons wielded *)
+                (* penalize second weapon *)
+                let aux_factor = 0.65 in 
+                let mu = Item.Melee.({msum with attrate = mmax.attrate +. (msum.attrate -. mmax.attrate) *. aux_factor}) in
+                Item.Melee.join_simple mu addition
+            | None -> default
+          )
       | None -> default
  
     let comp_ranged_unencumbered uc =
@@ -633,7 +656,7 @@ module Unit = struct
     match u.ac with
     | (Walk ((loc::_), _))::_ | (Run ((loc::_),_))::_ | (Wait (loc,_))::_ -> Some loc
     | (Timed (x,_,_,_))::_ -> x
-
+    | (OperateObj (loc,_))::_ -> Some loc 
     | (Walk ([],_))::_ | (Run ([],_))::_ | (Lookaround _)::_ | (FireProj _)::_ | [] -> None
 end
 
@@ -773,8 +796,13 @@ module R = struct
   module Obj = struct
     type stairs_type = StairsUp | StairsDown
     type stairs = (stairs_type * loc)
-    type t = {projls:Proj.t list; stairsls: stairs list}
-    let empty = {projls=[]; stairsls = []}
+
+    (* positional object type *)
+    type door_state = Open | Closed
+    type pos_obj_type = Door of door_state
+    
+    type t = {projls:Proj.t list; stairsls: stairs list; posobj: (pos_obj_type option) Area.t}
+    let empty w h = {projls=[]; stairsls = []; posobj = Area.make w h None }
   end
 
   type t = {

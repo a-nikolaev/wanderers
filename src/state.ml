@@ -21,8 +21,12 @@ open Global
 module CtrlM = struct
   type invclass = InvGround | InvUnit 
   type invprop = invclass*int*int*Unit.t*(Unit.t list)
-  type t = Normal | Target of (Unit.t list)
-    | Inventory of invprop | WaitInput of (Unit.t list)
+  type t = 
+    | Normal 
+    | Target of (Unit.t list)
+    | Look of (Unit.t list)
+    | Inventory of invprop 
+    | WaitInput of (Unit.t list)
 end
 
 module Clock = struct
@@ -48,7 +52,8 @@ module Options = struct
 end
 
 type t =
-  { cursor : loc;
+  { target_cursor : loc;
+    look_cursor : loc;
     cm : CtrlM.t;
     geo : G.geo; 
     controller_id: int;
@@ -155,7 +160,9 @@ let make w h debug =
 
   let atlas = Atlas.make pol geo' in
 
-  { cursor = (w/2,h/2);
+  { 
+    target_cursor = (w/2,h/2);
+    look_cursor = (w/2,h/2);
     cm = CtrlM.Normal;
     geo = geo';
     rem_dt = 0.0;
@@ -193,8 +200,10 @@ module Msg = struct
     | Assign
     | OpenInventory
     | Cancel
+    | Confirm
     | Num of int
     | Fire
+    | Look
     | UpStairs
     | DownStairs
     | ScrollForward
@@ -229,30 +238,49 @@ let respond s =
   in
   
   let to_normal s = {s with cm = CtrlM.Normal} in
+          
+  let fire u utl target = 
+    let delaytime = Unit.get_default_ranged_wait u in
+    meta_upd_one utl (E.upd {u with Unit.ac = 
+        [ Timed(Some u.Unit.loc, 0.0, delaytime, Prepare(FireProj target))]
+      } reg.R.e) in
+
   match s.cm with
   | CtrlM.Normal -> 
     ( function
       | _ -> to_normal s )
   | CtrlM.Target (u::utl) ->
+    let upd_cursor dloc = {s with target_cursor = validate (s.target_cursor ++ dloc) } in
     ( function
-        Msg.Left -> {s with cursor = validate (s.cursor ++ (-1,0)) }
-      | Msg.Right -> {s with cursor = validate (s.cursor ++ (1,0)) }
-      | Msg.Up -> {s with cursor = validate (s.cursor ++ (0,1)) }
-      | Msg.Down -> {s with cursor = validate (s.cursor ++ (0,-1)) }
-      | Msg.Fire when s.cursor <> u.Unit.loc -> 
+        Msg.Left -> upd_cursor (-1,0)
+      | Msg.Right -> upd_cursor (1,0)
+      | Msg.Up -> upd_cursor (0,1)
+      | Msg.Down -> upd_cursor (0,-1)
+      | Msg.Fire when s.target_cursor <> u.Unit.loc -> fire u utl s.target_cursor
+      | Msg.Cancel -> {s with cm = CtrlM.WaitInput (u::utl)} 
+      | _ -> s
+    )
+  | CtrlM.Look (u::utl) ->
+    let upd_cursor dloc = {s with look_cursor = validate (s.look_cursor ++ dloc) } in
+    ( function
+        Msg.Left -> upd_cursor (-1,0)
+      | Msg.Right -> upd_cursor (1,0)
+      | Msg.Up -> upd_cursor (0,1)
+      | Msg.Down -> upd_cursor (0,-1)
+      | Msg.Fire when s.look_cursor <> u.Unit.loc -> fire u utl s.look_cursor
+      
+      | Msg.Look | Msg.Confirm when s.look_cursor <> u.Unit.loc -> 
 
-          let fire () = 
-            let delaytime = Unit.get_default_ranged_wait u in
+            let delaytime = Unit.get_default_wait u in
             meta_upd_one utl (E.upd {u with Unit.ac = 
-                [ Timed(Some u.Unit.loc, 0.0, delaytime, Prepare(FireProj (s.cursor)))]
-              } reg.R.e) in
-
-          fire ()
+                [ Timed(Some u.Unit.loc, 0.0, delaytime, Prepare(OperateObj (s.look_cursor, OpObjOpen)))]
+              } reg.R.e) 
 
       | Msg.Cancel -> {s with cm = CtrlM.WaitInput (u::utl)} 
       | _ -> s
     )
   | CtrlM.Target [] -> ( function _ -> to_normal s )
+  | CtrlM.Look [] -> ( function _ -> to_normal s )
   | CtrlM.WaitInput [] -> ( function _ -> to_normal s )
   | CtrlM.WaitInput (u::utl) ->
 
@@ -292,6 +320,8 @@ let respond s =
             {s with cm = CtrlM.Inventory (CtrlM.InvGround,0,0,u,utl)}
         | Msg.Fire ->
             {s with cm = CtrlM.Target (u::utl) }
+        | Msg.Look ->
+            {s with cm = CtrlM.Look (u::utl); look_cursor = u.Unit.loc }
         | Msg.DownStairs 
             when List.mem (R.Obj.StairsDown, u.Unit.loc) reg.R.obj.R.Obj.stairsls ->
               upd_one ( E.upd {u with Unit.ac = [Wait (u.Unit.loc,0.0)]; Unit.transfer = Some Down} reg.R.e )

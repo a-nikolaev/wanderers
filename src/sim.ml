@@ -203,8 +203,9 @@ let move area ue dt u =
                 Some loc -> vec_of_loc loc --. u.Unit.pos
               | _ -> (0.0, 0.0) in 
             move_dv area ue dt dv u
+        | OperateObj _ 
         | Lookaround _ 
-        | FireProj _ ->
+        | FireProj _  ->
             move_dv area ue dt (0.0, 0.0) u
       )
   | [] ->
@@ -232,7 +233,7 @@ let adjust a u =
       if reaction_roll u1 then 
         {u1 with Unit.ac = ac_tl}
       else u1
-  | (Timed _)::_ | (Lookaround _)::_ | (FireProj _)::_ -> u1
+  | (Timed _)::_ | (Lookaround _)::_ | (FireProj _)::_ | (OperateObj _)::_ -> u1
   | [] -> u1
   | (Walk _)::_ | (Run _)::_ ->
       let messedup = 
@@ -271,6 +272,13 @@ let actions_with_objects (reg, u) =
         | None ->
             (reg, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
       )
+  | (OperateObj (loc, op))::ac_tl -> 
+      if loc_manhattan(u.Unit.loc -- loc) <= 1 then
+      ( let reg1 = Simobj.toggle_door u loc reg in
+        (reg1, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
+      )
+      else
+        (reg, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
   | _ -> (reg, u) 
 
 
@@ -543,7 +551,7 @@ let run dt s =
   in
 
   match s.cm with
-  | CtrlM.WaitInput _ | CtrlM.Target _ | CtrlM.Inventory _ ->
+  | CtrlM.WaitInput _ | CtrlM.Target _ | CtrlM.Look _ | CtrlM.Inventory _ ->
       (* how frequently the map is updated *)
       let step_dt = 10.0 in
       let number = ( s.State.top_rem_dt /. step_dt ) |> floor |> int_of_float  in

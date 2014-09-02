@@ -32,10 +32,11 @@ let add_cons area rm =
           Area.set area (i,j) Tile.WoodenFloor
       done
     done;
-    Area.set area (x,y+dy/2) Tile.OpenDoor;
-    Area.set area (x+dx,y+dy/2) Tile.OpenDoor;
-    Area.set area (x+dx/2,y) Tile.OpenDoor;
-    Area.set area (x+dx/2,y+dy) Tile.OpenDoor;
+    let op_door = Tile.Door Tile.IsOpen in
+    Area.set area (x,y+dy/2) op_door;
+    Area.set area (x+dx,y+dy/2) op_door;
+    Area.set area (x+dx/2,y) op_door;
+    Area.set area (x+dx/2,y+dy) op_door;
   in
   List.iter (fun {RM.constype=ct; RM.consloc=loc} ->
     let xy () = Random.int ((w/2 - 4)/2), Random.int ((h/2 - 4)/2) in
@@ -99,15 +100,17 @@ let maze a wall floor (x,y,dx,dy) =
   in
   repeat [(i0,j0)]
 
+let tile_open_closed () = if Random.int 2 = 0 then Tile.IsOpen else Tile.IsClosed
+
 let charmap_std = function
   | '.' -> Tile.WoodenFloor
-  | '+' -> Tile.OpenDoor
+  | '+' -> Tile.Door (tile_open_closed())
   | '#' -> Tile.Wall
   | _ -> Tile.Grass
 
 let charmap_inv = function
   | '#' -> Tile.DungeonFloor
-  | 'x' -> Tile.DungeonOpenDoor
+  | 'x' -> Tile.DungeonDoor (tile_open_closed())
   | '.' -> Tile.DungeonWall
   | _ -> Tile.DungeonFloor
 
@@ -267,7 +270,7 @@ let gen pol edges_func rid rm astr =
     );
 
   (* add stairs *)
-  let obj = Obj.empty in
+  let obj = Obj.empty (Area.w area) (Area.h area) in
   let obj = 
     if edges_func Down then
       let loc = find_placement_location area obj in
@@ -280,7 +283,20 @@ let gen pol edges_func rid rm astr =
       {obj with Obj.stairsls = (Obj.StairsUp, loc) :: obj.Obj.stairsls}
     else
       obj in
-
+  (* add door objects from the generated map *)
+  let _ =
+    for i = 0 to (Area.w area) - 1 do
+      for j = 0 to (Area.h area) - 1 do
+        let cl = Area.get area (i,j) |> Tile.classify in
+        match cl with
+        | Tile.CDoor Tile.IsOpen ->
+            Area.set obj.Obj.posobj (i,j) (Some (Obj.Door Obj.Open))
+        | Tile.CDoor Tile.IsClosed ->
+            Area.set obj.Obj.posobj (i,j) (Some (Obj.Door Obj.Closed))
+        | _ -> ()
+      done
+    done 
+  in
 
   let explored = Area.make (Area.w area) (Area.h area) None in
  
