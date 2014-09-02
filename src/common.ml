@@ -125,10 +125,12 @@ module Species = struct
 
   type t = genus * int
 
+  let add v dv x = v +. dv *. float x
+
   let xreaction = function
-    | Skeleton, _ -> 0.9
+    | Skeleton, x -> add 0.9 0.05 x
     | SkeletonWar, _ -> 1.0
-    | Zombie, _ -> 1.5
+    | Zombie, x -> add 1.5 0.05 x
     | ZombieHulk, _ -> 1.6
     | Wolf, _ -> 0.7
     | Troll, _ -> 1.2
@@ -137,8 +139,9 @@ module Species = struct
   let xmass = function
     | Cow, _ -> 3.0
     | Horse, _ -> 2.5
-    | Skeleton, _ -> 0.9
+    | Skeleton, x -> add 0.9 0.3 x
     | SkeletonWar, _ -> 1.5
+    | Zombie, x -> add 1.0 0.5 x
     | ZombieHulk, _ -> 2.0
     | Wolf, _ -> 0.8
     | Bear, _ -> 4.0
@@ -148,9 +151,9 @@ module Species = struct
   let xathletic = function
     | Cow, _ -> 2.0
     | Horse, _ -> 2.0
-    | Zombie, _ -> 1.2
+    | Zombie, x -> add 1.2 0.55 x
     | ZombieHulk, _ -> 2.3
-    | Skeleton, _ -> 0.9
+    | Skeleton, x -> add 0.9 0.3 x
     | SkeletonWar, _ -> 1.5
     | Bear, _ -> 3.5
     | Troll, _ -> 2.2
@@ -160,14 +163,17 @@ module Species = struct
     | Wolf, _ -> 1.5
     | Bear, _ -> 2.0
     | Troll, _ -> 4.0
+    | Skeleton, x -> add 1.0 0.35 x
     | SkeletonWar, _ -> 1.7
     | _ -> 1.0
 
   let rec upgrade prob sp =
     let r() = Random.float 1.0 in
     let rec u = function
-        Skeleton, x when r() < prob -> u (SkeletonWar, x)
-      | Zombie, x when r() < prob -> u (ZombieHulk, x)
+      | Skeleton, 0 when r() < prob -> u (Skeleton, 1)
+      | Skeleton, _ when r() < prob -> u (SkeletonWar, 0)
+      | Zombie, 0 when r() < prob -> u (Zombie, 1)
+      | Zombie, _ when r() < prob -> u (ZombieHulk, 0)
       | Wolf, x when r() < 2.0 *. prob -> u (Bear, x)
       | Bear, x when r() < 2.0 *. prob -> u (Troll, x)
       | sp -> sp 

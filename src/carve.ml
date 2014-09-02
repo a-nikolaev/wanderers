@@ -479,6 +479,8 @@ let constructors =
     "data/dg/dng1.au";
     "data/dg/dng2.au";
     "data/dg/dng3.au";
+    "data/dg/dng4.au";
+    "data/dg/dng5.au";
   ] |> Array.of_list
 
 let cons_house =

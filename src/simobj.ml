@@ -96,25 +96,31 @@ let add proj reg =
 
 
 let toggle_door u loc reg =
-  let oa = R.(reg.obj.Obj.posobj) in
-  let ta = reg.R.a in
+ 
+  if not (E.occupied loc reg.R.e) then
+  (  
+    let oa = R.(reg.obj.Obj.posobj) in
+    let ta = reg.R.a in
 
-  let obj_inv = function
-    | R.Obj.Door s -> R.Obj.Door ( match s with R.Obj.Open -> R.Obj.Closed | R.Obj.Closed -> R.Obj.Open )
-  in
-  
-  let tile_inv = 
-    let inv = function Tile.IsOpen -> Tile.IsClosed | Tile.IsClosed -> Tile.IsOpen in
-    function
-    | Tile.DungeonDoor s -> Tile.DungeonDoor (inv s)
-    | Tile.Door s -> Tile.Door (inv s)
-    | x -> x
-  in
-  
-  ( match Area.get oa loc with
-    | Some (R.Obj.Door s) -> 
-        Area.set oa loc (Some (obj_inv (R.Obj.Door s)));
-        Area.set ta loc (tile_inv (Area.get ta loc));
-    | _ -> ()
-  );
-  reg
+    let obj_inv = function
+      | R.Obj.Door s -> R.Obj.Door ( match s with R.Obj.Open -> R.Obj.Closed | R.Obj.Closed -> R.Obj.Open )
+    in
+    
+    let tile_inv = 
+      let inv = function Tile.IsOpen -> Tile.IsClosed | Tile.IsClosed -> Tile.IsOpen in
+      function
+      | Tile.DungeonDoor s -> Tile.DungeonDoor (inv s)
+      | Tile.Door s -> Tile.Door (inv s)
+      | x -> x
+    in
+    
+    ( match Area.get oa loc with
+      | Some (R.Obj.Door s) -> 
+          Area.set oa loc (Some (obj_inv (R.Obj.Door s)));
+          Area.set ta loc (tile_inv (Area.get ta loc));
+      | _ -> ()
+    );
+    reg
+  )
+  else
+    reg

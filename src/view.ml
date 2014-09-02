@@ -63,9 +63,9 @@ let species_img = function
   | Species.Wolf, _ -> Pos.u_mon ++ (0, 3)
   | Species.Bear, _ -> Pos.u_mon ++ (1, 3)
   | Species.Troll, _ -> Pos.u_mon ++ (2, 3)
-  | Species.Skeleton, _ -> Pos.u_mon ++ (0, 1) 
+  | Species.Skeleton, x -> Pos.u_mon ++ (0+x, 1) 
   | Species.SkeletonWar, _ -> Pos.u_mon ++ (2, 1) 
-  | Species.Zombie, _ -> Pos.u_mon ++ (0, 2) 
+  | Species.Zombie, x -> Pos.u_mon ++ (0+x, 2) 
   | Species.ZombieHulk, _ -> Pos.u_mon ++ (2, 2) 
 
 (* switch texture *)
@@ -500,11 +500,11 @@ let draw_unit t s reg eval_unit_strength u_controlled_strength u =
         set_color 1.0 1.0 1.0 0.7;
        
         let opt_img =
-          if ratio > 4.0 then 
+          if ratio > 8.0 then 
             Some (Pos.ui_dyn ++ (2, 0))
           else if ratio > 1.0 then 
             Some (Pos.ui_dyn ++ (1, 0))
-          else if ratio > 0.25 then 
+          else if ratio > 0.125 then 
             Some (Pos.ui_dyn ++ (0, 0))
           else
             None
@@ -549,7 +549,7 @@ let draw_unit t s reg eval_unit_strength u_controlled_strength u =
 
       (* simplified *)
       set_color 0.34 0.34 0.34 1.0;
-      Draw.put_string "Equipped:" Draw.gr_sml_ui (inv_coords_sml ++ (-12,0));
+      Draw.put_string "Equipment:" Draw.gr_sml_ui (inv_coords_sml ++ (-13,0));
       set_color 1.0 1.0 1.0 1.0;
       let inv = Unit.get_inv u in
       let w,h = 12,1 in
