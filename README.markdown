@@ -51,7 +51,7 @@ Not implemented yet:
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
 `v` Look mode (`v` or `Enter` to open/close doors, `f` for ranged attack, `Esc` to cancel)   
 `<` `>` Use stairs   
-`Esc` or `q` Cancel
+`Esc` or `q` Cancel   
 `Ctrl+Q` Save and quit   
 
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,
