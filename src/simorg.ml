@@ -20,7 +20,7 @@ open Common
 open Org
 open Global
 
-let alternative_cores core item =
+let alternative_cores core bunch =
   let inv = core.Unit.Core.inv in
   let def_ci = 0 in
 
@@ -31,21 +31,23 @@ let alternative_cores core item =
   match Inv.container def_ci inv with
   | Some cnt ->
       let initial_ls = 
-        match Item.Cnt.put item cnt with
-          Some cnt -> [(mk cnt, [])]
+        match Item.Cnt.put_bunch bunch cnt with
+        | Item.Cnt.MoveBunchSuccess cnt -> [(mk cnt, [])]
+        | Item.Cnt.MoveBunchPartial (b,cnt) -> [(mk cnt, [b])]
         | _ -> [] in
 
       (* remove one item, put the given item instead *)
       let alt_cores_ls =
         Item.Cnt.fold (fun acc si _ ->
-          match Item.Cnt.get si cnt with
-            Some (removed_item, cnt') -> 
-              ( match Item.Cnt.put item cnt' with
-                  Some cnt'' -> (mk cnt'', [removed_item]) :: acc
+          match Item.Cnt.get_bunch si cnt with
+            Some (removed_bunch, cnt') -> 
+              ( match Item.Cnt.put_bunch bunch cnt' with
+                | Item.Cnt.MoveBunchSuccess cnt'' -> (mk cnt'', [removed_bunch]) :: acc
+                | Item.Cnt.MoveBunchPartial (bunch_left, cnt'') -> (mk cnt'', bunch_left::[removed_bunch]) :: acc
                 | _ -> acc
               )
           | None -> acc
-        ) initial_ls cnt.Item.Cnt.item in
+        ) initial_ls cnt.Item.Cnt.bunch in
       alt_cores_ls
   | None ->
       []
@@ -62,22 +64,33 @@ let eval_slow c1 c2 =
 (* try to put on the given item
  *
  * returns a tuple (best core, list of the items to drop)  *)
-let try_item_eval eval_better core item =
-  let alt_ls = alternative_cores core item in
+let try_bunch_eval eval_better core bunch =
+  let alt_ls = alternative_cores core bunch in
   List.fold_left 
     (fun (bc, bls) (c,ls) -> 
       if eval_better c bc then (c,ls) else (bc,bls)
     ) 
-    (core,[item]) alt_ls
+    (core, [ bunch ] ) alt_ls
 
 let compute_core_value core = 
   let v = core |> Unit.Core.decompose |> Resource.numeric |> float in 
   let fm = Unit.Core.get_fm core in
   v**4.0 *. fm
 
-let try_to_keep_an_item eval_better (core, value) item =
-  match Inv.put_somewhere item (Unit.Core.get_inv core) with
-  | Some inv_alt ->
+
+(* returns (bunch, (core, value)) option;  the 'bunch' contains what is left *)
+let try_to_keep_the_bunch eval_better (core, value) bunch =
+  let result = Inv.put_somewhere_bunch bunch (Unit.Core.get_inv core) in
+
+  let opt_bunch, opt_inv_alt = 
+    match result with
+    | Item.Cnt.MoveBunchSuccess inv -> None, Some inv
+    | Item.Cnt.MoveBunchPartial (b, inv) -> Some b, Some inv
+    | _ -> Some bunch, None
+  in
+
+  match opt_inv_alt with
+    Some inv_alt ->
       let core_alt = 
         Unit.Core.adjust_aux_info {core with Unit.Core.inv = inv_alt} in
       if eval_better core core_alt then 
@@ -85,23 +98,25 @@ let try_to_keep_an_item eval_better (core, value) item =
       else
       ( let value_alt = compute_core_value core_alt in
         if value_alt > value then
-          Some (core_alt, value_alt)
+          Some (opt_bunch, (core_alt, value_alt))
         else
           None
       )
+
   | None -> None
 
 (* returns ((core,value),leftovers) *)
-let keep_precious_items core_value itemls =
-  let upd (cv,ls) item = 
-    match try_to_keep_an_item eval_slow cv item with
-      Some cv_alt -> true, (cv_alt, ls)
-    | None -> false, (cv, item::ls)
+let keep_precious_items core_value bunchls =
+  let upd (cv,ls) bunch = 
+    match try_to_keep_the_bunch eval_slow cv bunch with
+      Some (Some b, cv_alt) -> true, (cv_alt, b::ls)
+    | Some (None, cv_alt) -> true, (cv_alt, ls)
+    | None -> false, (cv, bunch::ls)
   in
   let rec next (cv0,ls0) (cvb,lsb) = function
-    | item::tl ->
-        let cvls_zero = cv0, item::ls0 in
-        ( match upd (cv0,ls0) item, upd (cvb,lsb) item with
+    | bunch::tl ->
+        let cvls_zero = cv0, bunch::ls0 in
+        ( match upd (cv0,ls0) bunch, upd (cvb,lsb) bunch with
           | (true, (((_,v0u),_) as cvls0u)), (true, (((_,vbu),_) as cvlsbu)) ->
               let best = if v0u > vbu then cvls0u else cvlsbu in
               next cvls_zero best tl
@@ -109,15 +124,15 @@ let keep_precious_items core_value itemls =
               next cvls_zero cvlsbu tl
           | (true, (((_,v0u),_) as cvls0u)), (false,_) ->
               let _,vb = cvb in
-              let best = if v0u > vb then cvls0u else (cvb, item::lsb) in
+              let best = if v0u > vb then cvls0u else (cvb, bunch::lsb) in
               next cvls_zero best tl
           | _ -> 
-              next cvls_zero (cvb, item::lsb) tl
+              next cvls_zero (cvb, bunch::lsb) tl
         )
     | [] -> (cvb,lsb)
   in
   let cvls = core_value,[] in
-  next cvls cvls itemls
+  next cvls cvls bunchls
 
 
 let will_we_fight pol core1 core2 =
@@ -160,26 +175,26 @@ let update_rid_core_g_astr rid core (g, astr) =
 
 (* try to use the items of the defeated opponent *)
 let digest_core_no_valuables my_core opp_core = 
-  let items_ls = Unit.Core.items_ls opp_core in
+  let bunch_ls = Unit.Core.bunch_ls opp_core in
   let my_core', leftovers =  
-    List.fold_left (fun (acc_core, acc_leftovers) item -> 
-        let core, drop_items_ls = try_item_eval eval_slow acc_core item in
-        (core, List.rev_append drop_items_ls acc_leftovers)
+    List.fold_left (fun (acc_core, acc_leftovers) bunch ->
+        let core, drop_bunch_ls = try_bunch_eval eval_slow acc_core bunch in
+        (core, List.rev_append drop_bunch_ls acc_leftovers)
       ) 
-    (my_core, []) items_ls in
+    (my_core, []) bunch_ls in
   ( my_core', 
     {opp_core with Unit.Core.inv = Inv.remove_everything (Unit.Core.get_inv opp_core)},
     leftovers )
 
 (* take both, better weapons and precious items  *)
 let digest_core my_core opp_core = 
-  let (my_core_upd, opp_core_upd, leftovers) = digest_core_no_valuables my_core opp_core in
-  let my_value_upd = compute_core_value my_core_upd in
 
+  let (my_core_upd, opp_core_upd, leftovers) = digest_core_no_valuables my_core opp_core in
+
+  let my_value_upd = compute_core_value my_core_upd in
   let (my_core_upd2, my_value_upd2), leftovers_upd2 = keep_precious_items (my_core_upd, my_value_upd) leftovers in
   
   (my_core_upd2, opp_core_upd, leftovers_upd2)
-
 
 
 (* transfer the actor *)
@@ -211,7 +226,7 @@ let scenario_meet_a_local pol a opp_core (g,astr) =
     in
     
     let res_to_dissolve = List.fold_left 
-      (fun res item -> Resource.add res (Item.decompose item)) 
+      (fun res bunch -> Resource.add res (Item.decompose_bunch bunch)) 
       Resource.zero leftovers_to_dissolve in
 
     dissolve_lat_res g rid res_to_dissolve;
@@ -240,7 +255,7 @@ let scenario_meet_an_actor pol a opp_actor (g,astr) =
     in
   
     let res_to_dissolve = List.fold_left 
-      (fun res item -> Resource.add res (Item.decompose item)) 
+      (fun res bunch -> Resource.add res (Item.decompose_bunch bunch)) 
       Resource.zero leftovers_to_dissolve in
 
     dissolve_lat_res g rid res_to_dissolve;

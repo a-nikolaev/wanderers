@@ -257,15 +257,15 @@ module Unit = struct
       | Some cnt -> 
           let accum = 
             Item.Cnt.fold 
-            ( fun acc _ obj ->
-                ( match acc, Item.get_melee obj with 
+            ( fun acc _ bunch ->
+                ( match acc, Item.get_melee bunch.Item.Cnt.item with 
                     (Some (acc_sum, acc_max)), Some m -> 
                       Item.Melee.(Some (join_simple acc_sum m, join_max acc_max m))
                   | None, Some m -> (Some (m, m))
                   | x, _ -> x
                 )
             )
-            None cnt.Item.Cnt.item 
+            None cnt.Item.Cnt.bunch 
           in
           ( match accum with 
             | Some (msum, mmax) ->
@@ -283,12 +283,12 @@ module Unit = struct
       match Inv.container 0 uc.inv with
       | Some cnt -> 
           Item.Cnt.fold 
-          ( fun acc _ obj ->
-              match Item.get_ranged obj with
+          ( fun acc _ bunch ->
+              match Item.get_ranged bunch.Item.Cnt.item with
                 None -> acc
               | x -> x
           )
-          base cnt.Item.Cnt.item
+          base cnt.Item.Cnt.bunch
       | None -> base
     
     let comp_defense_unencumbered cu =
@@ -296,11 +296,11 @@ module Unit = struct
       match Inv.container 0 cu.inv with
       | Some cnt -> 
           Item.Cnt.fold 
-          ( fun acc _ obj ->
-              let d = Item.get_defense obj in
+          ( fun acc _ bunch ->
+              let d = Item.get_defense bunch.Item.Cnt.item in
               acc +. d -. (d *. acc)
           )
-          base cnt.Item.Cnt.item
+          base cnt.Item.Cnt.bunch
       | None -> base
   
     (* helper function *)
@@ -309,13 +309,13 @@ module Unit = struct
         match cnt with
         | Some cnt -> 
             Item.Cnt.fold 
-            ( fun acc _ obj ->
-                if pred obj then
-                  acc +. Item.get_mass obj
+            ( fun acc _ bunch ->
+                if pred bunch.Item.Cnt.item then
+                  acc +. float bunch.Item.Cnt.amount *. Item.get_mass bunch.Item.Cnt.item
                 else
                   acc
             )
-            accum cnt.Item.Cnt.item
+            accum cnt.Item.Cnt.bunch
         | None -> accum in
       g (Inv.container cnt_num uc.inv) 0.0
 
@@ -452,8 +452,8 @@ module Unit = struct
       let uc, res = additem uc res in
       (adjust_aux_info uc, res)
 
-    let items_ls uc =
-      Inv.fold (fun ls _ _ obj -> obj::ls) [] (get_inv uc)
+    let bunch_ls uc =
+      Inv.fold (fun ls _ _ bunch -> bunch::ls) [] (get_inv uc)
 
     let decompose uc = Resource.add (Inv.decompose uc.inv) uc.res 
 

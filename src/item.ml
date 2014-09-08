@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 open Base
 
-type mat = Leather | Wood | Steel | DmSteel | RustySteel 
+type mat = Leather | Wood | Steel | DmSteel | RustySteel | Gold 
 
 type eff = [ `Heal ]
 
@@ -41,7 +41,7 @@ module Melee = struct
 end
 
 type prop = [ `Melee of Melee.t | `Defense of float | `Weight of float | `Material of mat 
-  | `Consumable of eff | `Wearable | `Wieldable | `Quality of qm | `Ranged of Ranged.t | `Money of int]
+  | `Consumable of eff | `Wearable | `Wieldable | `Quality of qm | `Ranged of Ranged.t | `Money]
 
 let upgrade_prop (m0,m1) prop =
   match m1 with
@@ -72,7 +72,8 @@ let upgrade_prop (m0,m1) prop =
   | _ -> prop
 
 module PS = Set.Make(struct type t = prop let compare = compare end)
-type t = { name: string; prop: PS.t; imgindex:int; price: int; }
+type t = { name: string; prop: PS.t; imgindex:int; price: int; stackable: int option }
+(* the parameter 'stackable' tells you the max size of the stack of such objects *)
 
 type item_type = t
 
@@ -138,20 +139,23 @@ let map_of_list ls =
 
 (* container *)
 module Cnt = struct
-  type slot_type = General | Hand | Body 
+  type slot_type = General | Hand | Body | Purse 
   
   let does_fit slt obj = match slt with
     | General -> true
     | Hand -> is `Wieldable obj
     | Body -> is `Wearable obj
- 
-  type t = {item : item_type M.t; slot: slot_type M.t; caplim: int option;}
+    | Purse -> is `Money obj
+
+  type bunch = {item: item_type; amount: int}
+
+  type t = {bunch: bunch M.t; slot: slot_type M.t; caplim: int option;}
 
   let make slot caplim =
-    {item = M.empty; slot; caplim}
+    {bunch = M.empty; slot; caplim}
 
   let empty_nat_human = 
-    let ls = [(0,Hand); (1,Body); (2,Hand)] in
+    let ls = [(0,Hand); (1,Body); (2,Hand); (3,Purse)] in
     let len = List.length ls in
     make (map_of_list ls) (Some len)
  
@@ -164,7 +168,7 @@ module Cnt = struct
           | Some lim -> i < lim | None -> true in
       
       if enough_space then
-      ( if not (M.mem i c.item) && 
+      ( if not (M.mem i c.bunch) && 
           (not (M.mem i c.slot) || pred (M.find i c.slot)) then
           Some i
         else
@@ -172,64 +176,133 @@ module Cnt = struct
       )
       else
         None 
-      
     in
     search 0
-
-  let put obj c = 
-    match find_empty_slot (fun slt -> does_fit slt obj) c with
-      Some i ->
-        Some {c with item = M.add i obj c.item}
-    | None -> 
+  
+  let find_matching_half_full_slot obj c = 
+    match obj.stackable with
+    | Some max_amount ->
+        M.fold 
+          (fun i b acc ->
+            match acc, b with
+            | None, {item; amount} when item = obj && amount < max_amount -> Some i
+            | _ -> acc
+          )
+          c.bunch None 
+    | None ->
         None
 
+  let put obj c =
+    let opt_i = 
+      match find_matching_half_full_slot obj c with
+      | Some i -> Some i
+      | None -> find_empty_slot (fun slt -> does_fit slt obj) c
+    in
+    match opt_i with
+    | Some i -> 
+        let {item; amount} = try M.find i c.bunch with Not_found -> {item=obj; amount=0} in
+        Some {c with bunch = M.add i {item; amount = amount+1} c.bunch}
+    | None -> None
+
+  (* get only one object *)
   let get i c = 
-    if M.mem i c.item then 
-      let obj = M.find i c.item in
-      Some (obj, {c with item = M.remove i c.item})
+    try 
+      let {item; amount} = M.find i c.bunch in
+      if amount > 1 then 
+        Some (item, {c with bunch = M.add i {item; amount=amount-1} c.bunch})
+      else
+        Some (item, {c with bunch = M.remove i c.bunch})
+    with
+    | Not_found -> None
+  
+  type 'a move_bunch_result = 
+    | MoveBunchFailure 
+    | MoveBunchPartial of (bunch * 'a)
+    | MoveBunchSuccess of 'a
+  
+  (* put the whole bunch *)
+  let put_bunch bunch c =
+    let max_amount = match bunch.item.stackable with Some x -> x | _ -> 1 in
+
+    let rec repeat some_success bunch c =
+      let {item; amount} = bunch in
+
+      let opt_i = 
+        match find_matching_half_full_slot item c with
+        | Some i -> Some i
+        | None -> find_empty_slot (fun slt -> does_fit slt item) c
+      in
+
+      match opt_i with
+      | Some i -> 
+          let amount_already_there = try (M.find i c.bunch).amount with Not_found -> 0 in
+
+          let amount_to_add = (min (amount+amount_already_there) max_amount) - amount_already_there in
+          let amount_remains = amount - amount_to_add in
+          let uc = {c with bunch = M.add i {item; amount = amount_already_there + amount_to_add} c.bunch} in
+          
+          if amount_remains > 0 then
+            repeat true {item; amount = amount_remains} uc
+          else
+            MoveBunchSuccess uc
+      | None -> 
+          if some_success then MoveBunchPartial (bunch, c) else MoveBunchFailure
+    in
+    if bunch.amount > 0 then
+      repeat false bunch c
     else
-      None
+      MoveBunchSuccess c
+  
+  (* get the whole bunch *)
+  let get_bunch i c = 
+    try 
+      let bunch = M.find i c.bunch in
+      Some (bunch, {c with bunch = M.remove i c.bunch})
+    with
+    | Not_found -> None
   
   (* move everything (as much as possible) from csrc to cdst *)
   let put_all csrc cdst =
     let rec next leftovers cs cd =
-      if M.is_empty cs.item then (leftovers, cd)
+      if M.is_empty cs.bunch then (leftovers, cd)
       else 
-      ( let i, obj = M.choose cs.item in
-        let cs1 = { cs with item = M.remove i cs.item } in 
-        match put obj cd with
-          Some cd1 -> next leftovers cs1 cd1
-        | None -> 
-            ( match put obj leftovers with
-              | Some lo -> next lo cs1 cd
+      ( let i, bunch = M.choose cs.bunch in
+        let cs1 = { cs with bunch = M.remove i cs.bunch } in 
+        match put_bunch bunch cd with
+          MoveBunchSuccess cd1 -> next leftovers cs1 cd1
+        | MoveBunchFailure -> 
+            ( match put_bunch bunch leftovers with
+              | MoveBunchSuccess lo -> next lo cs1 cd
+              | _ -> failwith "Cnt.put_all : cannot fit an object into the leftovers container" )
+        | MoveBunchPartial (b, cd1) -> 
+            ( match put_bunch b leftovers with
+              | MoveBunchSuccess lo -> next lo cs1 cd1
               | _ -> failwith "Cnt.put_all : cannot fit an object into the leftovers container" )
       )
     in 
-    let leftovers = {item = M.empty; slot = csrc.slot; caplim = csrc.caplim} in
+    let leftovers = {bunch = M.empty; slot = csrc.slot; caplim = csrc.caplim} in
     next leftovers csrc cdst
   
   let examine i c = 
-    if M.mem i c.item then 
-      let obj = M.find i c.item in
-      Some obj
-    else
-      None
+      try Some (M.find i c.bunch) with
+      | Not_found -> None
+  
   let fold f acc c =
-    M.fold (fun si obj acc -> f acc si obj) c acc
+    M.fold (fun si bunch acc -> f acc si bunch) c acc
 
   let remove_everything c = 
-    {c with item = M.empty}
+    {c with bunch = M.empty}
 
   exception Compacting_failure
 
   (* move the items to the beginning of the list when possible *)
   let compact c = 
     try
-      M.fold (fun si obj acc -> 
-        match put obj acc with 
-        | Some acc_upd -> acc_upd
-        | None -> raise Compacting_failure
-      ) c.item (remove_everything c)
+      M.fold (fun si bunch acc -> 
+        match put_bunch bunch acc with 
+        | MoveBunchSuccess acc_upd -> acc_upd
+        | _ -> raise Compacting_failure
+      ) c.bunch (remove_everything c)
     with
       Compacting_failure -> c
 
@@ -261,7 +334,8 @@ module Coll = struct
       | 5 -> 5
       | 6 -> 7
       | 7 -> 9
-      | _ -> 11
+      | 8 -> 11
+      | _ -> 16
     in
     y * 8 + size
   let stdprice size = max 1 (int_of_float (2.0 *. (4.0 ** float size)))
@@ -279,13 +353,16 @@ module Coll = struct
     let kind = match opt_kind with 
       | None -> 
           any_from_rate_ls [(0, 8.0); (1, 8.0); (2, 2.0); (3, 8.0); (4, 7.0); (5, 3.0); 
-            (6, 9.0) (* armor *); (7, 8.0); (8, 9.0)] 
+            (6, 9.0) (* armor *); (7, 8.0); (8, 9.0);
+            (9, 5.0) (* money *)
+          ] 
       | Some x -> x 
     in
     let melee x d =
       `Melee Melee.({attrate=1.0 *. (x+.1.0); duration = (2.0 -. 1.0/.(x+.1.0) +. 0.1 *. x) *. d;}) in
 
     let sword_weight s = sw_weight_a +. sw_weight_b *. (s**sw_weight_power) in
+    
     match kind with
       0 -> (* sword *)
         (* knife, dagger, short sword, arming sword, long sword (first two-handed), great sword, x, y*)
@@ -301,7 +378,7 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable
           |> PS.add (`Material mat) in
-        {name = "Sword-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Sword-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     | 1 -> (* rogue / backsword *)
         let size = Random.int 8 in
         let price = stdprice size in
@@ -313,7 +390,7 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Backsword-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Backsword-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     | 2 -> (* sabre *)
         let size = 2 + Random.int 2 in
         let price = stdprice size in
@@ -325,7 +402,7 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Sabre-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Sabre-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     | 3 -> (* blunt weapons *)
         let size = Random.int 8 in
         let price = stdprice size in
@@ -337,7 +414,7 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Mace-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Mace-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     | 4 -> (* axe *)
         let size = 1 + Random.int 7 in
         let price = stdprice size in
@@ -349,7 +426,7 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     | 5 -> (* polearm *)
         let size = 4 + Random.int 3 in
         let price = stdprice (size-1) in
@@ -362,7 +439,7 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     | 6 -> (* armor *)
         let size = 1 + Random.int 5 in
         let price = stdprice size in 
@@ -375,7 +452,7 @@ module Coll = struct
           |> PS.add `Wearable
           |> PS.add (`Material mat) in
         let name = match size with 0 -> "Leather Armor" | 1 -> "Chain mail" | 2 -> "Plated mail" | 3 -> "Laminar armor" | _ -> "Plate armor" in
-        {name; prop; imgindex = index kind size; price}
+        {name; prop; imgindex = index kind size; price; stackable = None; } 
     | 7 -> (* shield *)
         let size = 0 + Random.int 8 in
         let price = stdprice size in
@@ -392,9 +469,9 @@ module Coll = struct
           | 0 -> PS.add (melee (s*.0.5) 1.5) prop 
           | 1 -> PS.add (melee (s*.0.25) 1.5) prop 
           | _ -> prop in
-        {name = "Shield-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Shield-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     
-    | _ -> (* ranged *)
+    | 8 -> (* ranged *)
         let size = Random.int 5 in
         let x = float size in
         let price = stdprice size in
@@ -407,7 +484,14 @@ module Coll = struct
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Ranged-"^(string_of_int size); prop; imgindex = index kind size; price}
+        {name = "Ranged-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+    
+    | _ -> (* coin *)
+        let size = 0 in
+        let price = 1 in
+        let weight = 0.0 in
+        let prop = PS.empty |> PS.add (`Money) |> PS.add (`Weight weight) |> PS.add (`Material Gold) in
+        {name = "Coin"; prop; imgindex = index kind size; price; stackable = Some 999999}
   
   let random opt_kind =
     let item = simple_random opt_kind in
@@ -425,4 +509,6 @@ module Coll = struct
 end
 
 let decompose obj = Resource.make (obj.price)
+
+let decompose_bunch bunch = Resource.make (bunch.Cnt.item.price * bunch.Cnt.amount)
 

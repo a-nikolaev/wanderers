@@ -253,24 +253,45 @@ let draw_cursor t gr ij =
 let draw_target_cursor t gr ij = 
   Draw.draw_tile_ext (Pos.ui_dyn ++ (10, 0)) gr ij
 
-let draw_item t obj gr ij =
+let draw_item t obj amount gr ij =
   let x = obj.Item.imgindex in
   let img = Pos.items ++ (x mod 8, x / 8) in
-  match Item.get_mat obj with
-    Some Item.DmSteel ->
-      let tt = 0.0001 *. float t in
-      let xr = 0.05 *. sin (tt) in
-      let xg = 0.05 *. sin (tt +. 1.0) in
-      let xb = 0.05 *. sin (tt +. 2.0) in
-      set_color (0.78 -. xr) (0.78 +. xg) (0.86 +. xb) 1.0;
-      Draw.draw_tile img gr ij;
-      set_color 1.0 1.0 1.0 1.0
-  | Some Item.RustySteel ->
-      set_color (0.80) (0.70) (0.60) 1.0;
-      Draw.draw_tile img gr ij;
-      set_color 1.0 1.0 1.0 1.0
-  | _ ->
-      Draw.draw_tile img gr ij
+  (
+    match Item.get_mat obj with
+      Some Item.DmSteel ->
+        let tt = 0.0001 *. float t in
+        let xr = 0.05 *. sin (tt) in
+        let xg = 0.05 *. sin (tt +. 1.0) in
+        let xb = 0.05 *. sin (tt +. 2.0) in
+        set_color (0.78 -. xr) (0.78 +. xg) (0.86 +. xb) 1.0;
+        Draw.draw_tile img gr ij;
+        set_color 1.0 1.0 1.0 1.0
+    | Some Item.RustySteel ->
+        set_color (0.80) (0.70) (0.60) 1.0;
+        Draw.draw_tile img gr ij;
+        set_color 1.0 1.0 1.0 1.0
+    | Some Item.Gold ->
+        let pic = (log10 (float amount)) |> floor |> int_of_float |> (min 4) in
+        Draw.draw_tile (img ++ (pic,0)) gr ij
+    | _ ->
+        Draw.draw_tile img gr ij
+  )
+
+let draw_bunch_text t bunch gr ij =
+  let gr_text = Grafx.Grid.({gr with x0 = gr.x0*2; y0 = gr.y0*2; dx=gr.dx/2; dy=gr.dy/2}) in
+  if bunch.Item.Cnt.amount > 0 then
+  (
+    Draw.put_string (string_of_int bunch.Item.Cnt.amount) gr_text (2 %% ij)
+  )
+
+let draw_bunch_no_text t bunch gr ij =
+  draw_item t bunch.Item.Cnt.item bunch.Item.Cnt.amount gr ij
+
+let draw_bunch t bunch gr ij =
+  draw_item t bunch.Item.Cnt.item bunch.Item.Cnt.amount gr ij;
+  match bunch.Item.Cnt.item.Item.stackable with 
+  | Some _ -> draw_bunch_text t bunch gr ij
+  | _ -> () 
 
 let draw_container t (w,h) c gr (i,j) = 
   for ii=0 to w-1 do
@@ -278,9 +299,9 @@ let draw_container t (w,h) c gr (i,j) =
       Draw.draw_tile (Pos.ui_stat ++ (9,0)) gr (i+ii,j+jj)
     done
   done;
-  Item.M.iter (fun k obj -> 
-    draw_item t obj gr (i + k mod w, j - k / w)
-  ) c.Item.Cnt.item
+  Item.M.iter (fun k bunch -> 
+    draw_bunch t bunch gr (i + k mod w, j - k / w)
+  ) c.Item.Cnt.bunch
 
 let draw_container_auto_width t (w,h) c gr (i,j) =
   let w = match c.Item.Cnt.caplim with Some x -> x | _ -> w in
@@ -392,7 +413,7 @@ let draw_area_tile_floor t reg rm vision (i,j) =
           | Some inv -> 
               for k = 0 to 2 do
                 match Inv.examine 0 k inv with
-                  Some obj -> draw_item t obj Draw.gr_map (i,j)
+                  Some bunch -> draw_bunch_no_text t bunch Draw.gr_map (i,j)
                 | None -> ()
               done
           | None -> ()
@@ -813,7 +834,7 @@ let draw_state t s =
         | _ -> () );
       
       (* find the object we are pointing at *)
-      let optobj = 
+      let optbunch = 
         let optinv = 
           match invclass with
           | State.CtrlM.InvGround -> Area.get reg.R.optinv u.Unit.loc 
@@ -822,9 +843,9 @@ let draw_state t s =
           Some inv -> Inv.examine ic ii inv 
         | None -> None
       in
-      ( match optobj with
-          Some obj ->
-            output_object_desc obj (inv_coords_sml ++ (0, -4))
+      ( match optbunch with
+          Some bunch ->
+            output_object_desc bunch.Item.Cnt.item (inv_coords_sml ++ (0, -4))
             
         | None -> ()
       );

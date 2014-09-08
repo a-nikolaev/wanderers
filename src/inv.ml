@@ -48,6 +48,30 @@ let put_somewhere obj inv =
     Some (ci,c) -> Some {inv with cnt = M.add ci c inv.cnt}
   | None -> None
 
+(* try to put in any available container *)
+let put_somewhere_bunch bunch inv =
+  let remaining, new_ci_c_list =
+    M.fold (fun ci c (opt_bunch, ls) -> 
+        match opt_bunch with
+        | Some bunch -> 
+          ( match Cnt.put_bunch bunch c with 
+            | Item.Cnt.MoveBunchSuccess c' -> (None, (ci, c') :: ls)
+            | Item.Cnt.MoveBunchPartial (b', c') -> (Some b', (ci, c') :: ls)
+            | Item.Cnt.MoveBunchFailure -> (Some bunch, ls)
+          )
+        | _ -> (opt_bunch, ls)
+      )
+      inv.cnt (Some bunch, [])
+  in
+  match new_ci_c_list with
+  | [] -> Item.Cnt.MoveBunchFailure
+  | ls -> 
+      let inv_upd = List.fold_left (fun inv_acc (ci,c) -> {inv_acc with cnt = M.add ci c inv_acc.cnt}) inv ls in
+      ( match remaining with 
+        | Some b -> Item.Cnt.MoveBunchPartial (b, inv_upd)
+        | None -> Item.Cnt.MoveBunchSuccess inv_upd
+      )
+
 (* get an object from the container #ci, slot si *)
 let get ci si inv =
   if M.mem ci inv.cnt then
@@ -74,11 +98,13 @@ let container ci inv =
 
 let fold f acc inv =
   M.fold (fun ci c acc -> 
-      M.fold (fun si obj acc -> f acc ci si obj) c.Cnt.item acc
+      M.fold (fun si bunch acc -> f acc ci si bunch) c.Cnt.bunch acc
   ) inv.cnt acc
 
 let decompose inv =
-  fold (fun acc _ _ obj -> Resource.add acc (Item.decompose obj)) Resource.zero inv
+  fold (fun acc _ _ bunch -> 
+    Resource.add acc (Item.decompose_bunch bunch)
+  ) Resource.zero inv
 
 let remove_everything inv =
   let cnt' =
@@ -137,7 +163,7 @@ let ground_drop_all invsrc optinv =
   | None -> ground
   in  
   let invleftovers = 
-    {cnt = M.map (fun cnt -> Cnt.({item=M.empty; slot=cnt.slot; caplim=cnt.caplim})) invsrc.cnt; limit = invsrc.limit} in
+    {cnt = M.map (fun cnt -> Cnt.({bunch=M.empty; slot=cnt.slot; caplim=cnt.caplim})) invsrc.cnt; limit = invsrc.limit} in
   let cd = M.find 0 invdst.cnt in
   let invleft_final, cd_final =
     M.fold (fun ics cs (invleftovers, cd) -> 

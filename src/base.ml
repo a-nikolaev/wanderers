@@ -128,6 +128,8 @@ module Resource = struct
 
   let scale c {wealth} = {wealth = (c *. float wealth) |> round_prob}
   
+  let times c {wealth} = {wealth = c * wealth}
+  
   let intersection {wealth=w1} {wealth=w2} = {wealth = min w1 w2}
 
   let lesseq r1 r2 = 

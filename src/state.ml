@@ -316,7 +316,8 @@ let respond s =
                 Unit.fnctqn = Fencing.auto_switch u.Unit.fnctqn;
               } in
             upd_one ( E.upd updated_u reg.R.e )
-        | Msg.OpenInventory ->
+        | Msg.OpenInventory 
+        | Msg.Confirm ->
             {s with cm = CtrlM.Inventory (CtrlM.InvGround,0,0,u,utl)}
         | Msg.Fire ->
             {s with cm = CtrlM.Target (u::utl) }
