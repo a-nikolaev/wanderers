@@ -184,7 +184,7 @@ end
 module Unit = struct
   module Core = struct
     type properties = {reaction:float; mass:float; radius:float; athletic:float; basedmg:float; courage:float;}
-    type aux = {mass_carry: float; mass_wear: float; mass_wield: float; 
+    type aux = {mass_carry: float; mass_wear: float; mass_headgear: float; mass_wield: float; 
       unenc_melee: Item.Melee.t; unenc_ranged: Item.Ranged.t option; unenc_defense: float;
       fm: float;
       melee: Item.Melee.t; ranged: Item.Ranged.t option; defense: float;
@@ -245,7 +245,7 @@ module Unit = struct
     (* 1 = free movement, 0 = encumbered *)
     let comp_fm uc =
       let force = uc.prop.athletic in
-      let wg_mass = uc.aux.mass_wield +. 0.25 *. uc.aux.mass_wear +. 0.1 *. uc.aux.mass_carry in
+      let wg_mass = uc.aux.mass_wield +. 0.25 *. uc.aux.mass_wear +. 0.35 *. uc.aux.mass_headgear +. 0.1 *. uc.aux.mass_carry in
       let sigmoid_decay mean x = 1.0 /. (1.0 +. exp (x -. mean)) in
       sigmoid_decay (0.5 *. force) wg_mass
  
@@ -320,6 +320,7 @@ module Unit = struct
       g (Inv.container cnt_num uc.inv) 0.0
 
     let comp_mass_wear uc = comp_mass_cnt_pred uc 0 Item.is_wearable 
+    let comp_mass_headgear uc = comp_mass_cnt_pred uc 0 Item.is_a_headgear 
     let comp_mass_wield uc = comp_mass_cnt_pred uc 0 Item.is_wieldable 
     let comp_mass_carry uc = comp_mass_cnt_pred uc 1 (fun _ -> true)
 
@@ -340,6 +341,7 @@ module Unit = struct
       let uc1 = { uc with aux = { uc.aux with
         mass_carry = comp_mass_carry uc;
         mass_wear = comp_mass_wear uc;
+        mass_headgear = comp_mass_headgear uc;
         mass_wield = comp_mass_wield uc; } }
       in
       let unenc_melee = comp_melee_unencumbered uc in
@@ -358,7 +360,7 @@ module Unit = struct
     let get_ranged uc = uc.aux.ranged
     let get_defense uc = uc.aux.defense
     let get_total_mass uc = 
-      (uc.prop.mass +. uc.aux.mass_carry +. uc.aux.mass_wear +. uc.aux.mass_wield)
+      (uc.prop.mass +. uc.aux.mass_carry +. uc.aux.mass_wear +. uc.aux.mass_headgear +. uc.aux.mass_wield)
     let get_fm uc = uc.aux.fm
     let get_sp uc = uc.sp
     let get_fac uc = uc.fac
@@ -419,7 +421,7 @@ module Unit = struct
         basedmg = basedmg *. Species.xbasedmg sp;
         courage = courage;
         } in
-      let aux = {mass_carry = 0.0; mass_wear = 0.0; mass_wield = 0.0; 
+      let aux = {mass_carry = 0.0; mass_wear = 0.0; mass_headgear = 0.0; mass_wield = 0.0; 
         unenc_melee = Item.Melee.({attrate=1.0; duration=1.0});
         unenc_ranged = None;
         unenc_defense = 0.0;

@@ -44,10 +44,10 @@ Not implemented yet:
 
 ### Controls
 `Arrow keys` or `h` `j` `k` `l` Movement  
-`w` `a` `s` `d` Melee attack   
+`w` `a` `s` `d` or `Ctrl+direction` Melee attack   
 `t` Rest   
 `Space` Wait   
-`i` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
+`i` or `Enter` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
 `v` Look mode (`v` or `Enter` to open/close doors, `f` for ranged attack, `Esc` to cancel)   
 `<` `>` Use stairs   

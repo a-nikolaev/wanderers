@@ -41,7 +41,7 @@ module Melee = struct
 end
 
 type prop = [ `Melee of Melee.t | `Defense of float | `Weight of float | `Material of mat 
-  | `Consumable of eff | `Wearable | `Wieldable | `Quality of qm | `Ranged of Ranged.t | `Money]
+  | `Consumable of eff | `Wearable |  `Headgear | `Wieldable | `Quality of qm | `Ranged of Ranged.t | `Money]
 
 let upgrade_prop (m0,m1) prop =
   match m1 with
@@ -126,7 +126,8 @@ let get_mass obj =
       | _ -> acc
     ) obj.prop 0.0
 
-let is_wearable obj = PS.mem `Wearable obj.prop
+let is_wearable obj = PS.mem `Wearable obj.prop 
+let is_a_headgear obj = PS.mem `Headgear obj.prop
 let is_wieldable obj = PS.mem `Wieldable obj.prop
 
 
@@ -139,11 +140,12 @@ let map_of_list ls =
 
 (* container *)
 module Cnt = struct
-  type slot_type = General | Hand | Body | Purse 
+  type slot_type = General | Hand | Head | Body | Purse 
   
   let does_fit slt obj = match slt with
     | General -> true
     | Hand -> is `Wieldable obj
+    | Head -> is `Headgear obj
     | Body -> is `Wearable obj
     | Purse -> is `Money obj
 
@@ -155,7 +157,7 @@ module Cnt = struct
     {bunch = M.empty; slot; caplim}
 
   let empty_nat_human = 
-    let ls = [(0,Hand); (1,Body); (2,Hand); (3,Purse)] in
+    let ls = [(0,Hand); (1,Body); (2,Hand); (3, Head); (4,Purse)] in
     let len = List.length ls in
     make (map_of_list ls) (Some len)
  
@@ -333,8 +335,9 @@ module Coll = struct
       | 4 -> 4
       | 5 -> 5
       | 6 -> 7
-      | 7 -> 9
-      | 8 -> 11
+      | 7 -> 8
+      | 8 -> 9
+      | 9 -> 11
       | _ -> 16
     in
     y * 8 + size
@@ -352,9 +355,11 @@ module Coll = struct
   let simple_random opt_kind =
     let kind = match opt_kind with 
       | None -> 
-          any_from_rate_ls [(0, 8.0); (1, 8.0); (2, 2.0); (3, 8.0); (4, 7.0); (5, 3.0); 
-            (6, 9.0) (* armor *); (7, 8.0); (8, 9.0);
-            (9, 5.0) (* money *)
+          any_from_rate_ls [(0, 8.0); (1, 8.0); (2, 2.0); (3, 8.0); (4, 7.0); (5, 1.0); 
+            (6, 9.0) (* armor *); (7, 6.0) (* helmets *); 
+            (8, 8.0); 
+            (9, 12.0); (* ranged *)
+            (10, 5.0) (* money *)
           ] 
       | Some x -> x 
     in
@@ -398,7 +403,8 @@ module Coll = struct
         let weight = (sword_weight s) *. 1.10 in
         let mat = Steel in 
         let prop = PS.empty 
-          |> PS.add (melee (s *. 1.2) 1.0) 
+          |> PS.add (melee (s *. 1.05) 1.0) 
+          |> PS.add (`Defense (0.05 +. 0.01 *. float (size-2)))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
@@ -453,7 +459,20 @@ module Coll = struct
           |> PS.add (`Material mat) in
         let name = match size with 0 -> "Leather Armor" | 1 -> "Chain mail" | 2 -> "Plated mail" | 3 -> "Laminar armor" | _ -> "Plate armor" in
         {name; prop; imgindex = index kind size; price; stackable = None; } 
-    | 7 -> (* shield *)
+    | 7 -> (* headgear *)
+        let size = Random.int 6 in
+        let price = stdprice size in 
+        let s = float size in
+        let weight = (sword_weight s) *. 2.0 in
+        let mat = if size < 2 then Leather else Steel in 
+        let prop = PS.empty 
+          |> PS.add (`Defense (0.05 +. 0.07 *. float size))
+          |> PS.add (`Weight (weight)) 
+          |> PS.add `Headgear
+          |> PS.add (`Material mat) in
+        let name = match size with 0 -> "Leather Cap" | _ -> "Helmet" in
+        {name; prop; imgindex = index kind size; price; stackable = None; } 
+    | 8 -> (* shield *)
         let size = 0 + Random.int 8 in
         let price = stdprice size in
         let s = float size in
@@ -471,7 +490,7 @@ module Coll = struct
           | _ -> prop in
         {name = "Shield-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
     
-    | 8 -> (* ranged *)
+    | 9 -> (* ranged *)
         let size = Random.int 5 in
         let x = float size in
         let price = stdprice size in
