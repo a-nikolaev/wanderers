@@ -253,9 +253,14 @@ let gen pol edges_func rid rm astr =
   List.iter 
     ( fun (dir, loc0, dloc) ->
         if edges_func dir then
+          let check_wall loc = Area.is_within area loc && not (Area.get area loc |> Tile.classify |> Tile.can_walk) in
           let rec repeat loc =
-            if Area.is_within area loc && not (Area.get area loc |> Tile.classify |> Tile.can_walk) then
-              (Area.set area loc ground_tile; repeat (loc ++ dloc))
+            if check_wall loc then
+            ( Area.set area loc ground_tile;
+              
+              if (List.for_all (fun d -> (d++dloc = (0,0)) || check_wall (loc++d)) [(1,0); (-1,0); (0,1); (0,-1)]) then
+                repeat (loc ++ dloc)
+            )
             else 
               ()
           in
