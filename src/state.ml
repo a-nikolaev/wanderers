@@ -108,18 +108,35 @@ let make w h debug =
     (* ok locations *)
     let find_good_rid () =
       let best_rid, best_val =
-        let centerxy = (w/2, h/2) in
+        let centerxy = 
+          let sx,sy,n = 
+            fold_lim (fun (sx,sy,n) i ->
+              let z,(x,y) = geo.G.loc.(i) in
+              if z = 0 then (sx+x, sy+y, n+1) else (sx,sy,n)
+            ) (0,0,0) 0 (G.length geo - 1) in
+          if n > 0 then
+            (sx/n, sy/n)
+          else
+            (geo_w/2, geo_h/2) 
+        in
+        let md = loc_manhattan centerxy in
         fold_lim (fun (rid,v) i ->
-          let rz,(rxy) = geo.G.loc.(rid) in
+          let rz,(rxy) = geo.G.loc.(i) in
           let centrality = 
             if rz = 0 then
-              let md = loc_manhattan centerxy in
               10.0 *. float (md - loc_manhattan (rxy -- centerxy)) /. float md
             else 0.0 in
           let friends = float (Global.fget geo i player_faction) in 
           let v' = friends +. centrality in
-          if v' > v then (i,v') else (rid,v)
-        ) (Random.int len, -1.0) 0 (G.length geo - 1) in
+          if v' > v then
+            (
+              (*
+              Printf.printf "(rid=%i, v=%f) %!" i v';
+              *)
+              (i,v')
+            )
+          else (rid,v)
+        ) (Random.int len / 2, -1.0) 0 (G.length geo - 1) in
       best_rid
     in
     (*
@@ -131,7 +148,10 @@ let make w h debug =
 
     find_good_rid()
   in
-  Printf.printf "new_currid = %i\n%!" new_currid;
+  (
+    let z, (x,y) = geo.G.loc.(new_currid) in
+    Printf.printf "new_currid = %i, z = %i, x = %i, y = %i\n%!" new_currid z x y;
+  );
   let geo = {geo with G.currid = new_currid} in
   let geo = geo |> Globalmove.move pol astr South |> Globalmove.move pol astr North in 
   let reg = G.curr geo in
