@@ -37,6 +37,11 @@ Not implemented yet:
   * Rumors, information spreading, reputation.    
   * Apocalyptic events, villains, and winning conditions.    
 
+### How to build
+On Linux and (probably) OSX. Install the latest `ocaml` package for your system.
+Make sure you have OpenGL drivers installed. Then just execute make.    
+  `make`
+
 ### Command line
   `./wanderers` loads the saved game if it exists, otherwise starts a new game.   
   `./wanderers <seed>` starts a new game with the given seed.   

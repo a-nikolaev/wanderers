@@ -427,6 +427,28 @@ let intel geo reg pol ue u =
           )
       | _ -> u )
 
+
+(* mob tries to take both, better weapons and precious items. Updates the optinv in place *)
+let pick_up_items (u, reg) = 
+  match Area.get reg.R.optinv u.Unit.loc with
+  | Some inv ->
+      let eval = Simorg.eval_slow in
+
+      let upd_core, upd_optinv = 
+        Inv.fold (fun (acc_core, acc_optinv) _ _ bunch -> 
+          let core, ls = Simorg.try_bunch_eval eval acc_core bunch in
+            (core, List.fold_left (fun acc bunch -> Inv.raw_ground_drop_bunch bunch acc) acc_optinv ls)
+          ) 
+          (Unit.get_core u, None) 
+          inv
+      in
+
+      Area.set reg.R.optinv u.Unit.loc upd_optinv; (* in place update !!! *)
+      
+      {u with Unit.core = upd_core}
+
+  | _ -> u
+
 (* helper function *)
 (* run simulation for a single unit, return reg and need_input *)
 let run_for_one dt u s (reg, astr, need_input) =
@@ -473,6 +495,11 @@ let run_for_one dt u s (reg, astr, need_input) =
       ( (* add intelligence for units that are not directly controlled *)
         if Unit.get_controller u' = None then 
         ( let astr_upd = Org.Astr.update_from_unit u' rid astr in
+          
+          (* try to pick up items - Should be probably somewhere else *)
+          let u' = pick_up_items (u', reg) in
+          (* /end picking up items *)
+
           let u'' = (u' |> intel s.geo reg s.pol ue) in
           (updateu u'', Org.Astr.update_from_unit u'' rid astr_upd, need_input) )
         (* or wait for input *)

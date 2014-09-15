@@ -367,6 +367,8 @@ let gen pol edges_func rid rm astr =
         else
         ( (* make a unit without items *)
           let u = Unit.make fac sp None loc in
+          (* change its inventory to animal inventory *)
+          let u = Unit.({u with core = {u.core with Core.inv = Inv.animal}}) in
           (E.upd u e_acc, mov_acc) ) 
       )
       else

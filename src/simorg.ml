@@ -63,7 +63,7 @@ let eval_slow c1 c2 =
 
 (* try to put on the given item
  *
- * returns a tuple (best core, list of the items to drop)  *)
+ * returns a tuple (best core, list of the bunches to drop)  *)
 let try_bunch_eval eval_better core bunch =
   let alt_ls = alternative_cores core bunch in
   List.fold_left 

@@ -156,7 +156,7 @@ let main () =
               let c = Char.chr (Char.code 'a' + Random.int 26) in 
               s.[i] <- c
             done;
-            Printf.printf "Random seed: %s\n" s;
+            Printf.printf "Random seed: %s\n%!" s;
             s
           )
           else

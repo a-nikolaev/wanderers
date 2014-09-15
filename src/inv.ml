@@ -147,6 +147,16 @@ let ground_drop obj optinv =
     Some inv' -> Some (Some inv')
   | None -> None
 
+let raw_ground_drop_bunch bunch optinv =
+  let inv = 
+    match optinv with
+      Some inv -> inv
+    | _ -> ground
+  in
+  match put_somewhere_bunch bunch inv with
+    Item.Cnt.MoveBunchSuccess inv' -> Some inv'
+  | _ -> failwith "ground_drop_bunch failure"
+
 let ground_pickup ci ii optinv =
   match optinv with
   | Some ginv -> 
