@@ -4,10 +4,12 @@
 An open world roguelike. Currently, at a rather early development stage. 
 Nevertheless, many characteristic features of the game are already implemented, and it is playable.
 
-[![](http://i.imgur.com/S8syczzs.png)](http://i.imgur.com/S8syczz.png) 
-[![](http://i.imgur.com/LQgZCbVs.png)](http://i.imgur.com/LQgZCbV.png) 
-[![](http://i.imgur.com/pKucMxvs.png)](http://i.imgur.com/pKucMxv.png) 
-[![](http://i.imgur.com/0QB9Ibzs.png)](http://i.imgur.com/0QB9Ibz.png) 
+[![](http://i.imgur.com/CS3wUVw.png)](http://i.imgur.com/qzAvnpq.png) 
+[![](http://i.imgur.com/gm0e3Sv.png)](http://i.imgur.com/t4jiXQA.png) 
+[![](http://i.imgur.com/g2d95a4.png)](http://i.imgur.com/KQTFw5g.png) 
+[![](http://i.imgur.com/kCdu5qL.png)](http://i.imgur.com/RGIn9hn.png) 
+[![](http://i.imgur.com/MjwGhlD.png)](http://i.imgur.com/c7chiWd.png) 
+[![](http://i.imgur.com/ARCqRzW.png)](http://i.imgur.com/bRqoNNG.png) 
 
 ### Features
   * *Multi-scale simulation of a big, but finite, world.* 
