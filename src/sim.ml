@@ -152,21 +152,25 @@ let move_dv area ue dt dv u =
 
     match transfer with 
       None -> 
-        if reaction_roll u then (* cancel actions if reaction is good *)
-          {u with Unit.vel=(0.0,0.0); Unit.pos=u.Unit.pos; ac = []; ntfy = nntfy;}
-        else
-          (*
-          {u with Unit.vel=(0.0,0.0); Unit.pos=u.Unit.pos; Unit.ac=(Wait (u.Unit.loc,0.0)):: ff_action_ls nloc u.Unit.ac;}
-          *)
-          let (nvelx, nvely) = nvel in
-          let loc = u.Unit.loc in
-          let vel_repel = 1.0 %%.
-            match loc -- nloc with
-            | 0, _ -> (nvelx, -.nvely)
-            | _, 0 -> (-.nvelx, nvely)
-            | _ -> (-.nvelx, -.nvely)
-          in
-          {u with Unit.vel=vel_repel; Unit.pos=u.Unit.pos; ntfy = nntfy; Unit.ac=[Wait (u.Unit.loc,0.0)];}
+        let (nvelx, nvely) = nvel in
+        let loc = u.Unit.loc in
+        let vel_repel = 1.0 %%.
+          match loc -- nloc with
+          | 0, _ -> (nvelx, -.nvely)
+          | _, 0 -> (-.nvelx, nvely)
+          | _ -> (-.nvelx, -.nvely)
+        in
+          
+        let uu = {u with Unit.vel=vel_repel; Unit.pos=u.Unit.pos; Unit.ntfy = nntfy;} in
+
+        ( match Unit.cur_dest_loc u with
+        | Some xloc when xloc = nloc ->
+            if reaction_roll u then (* cancel actions if reaction is good *)
+              {uu with Unit.ac = [];}
+            else
+              {uu with Unit.ac=[Wait (u.Unit.loc,0.0)];}
+        | _ -> 
+            uu )
     | _ ->
         {u with Unit.vel=nvel; Unit.pos=u.Unit.pos; ntfy = nntfy; ac = [Wait (u.Unit.loc,0.0)]; transfer}
   )
@@ -563,7 +567,10 @@ let run dt s =
         ) (s.geo, s.astr, []) reg_list in
 
       (* transfer units *)
-      let reg_list_1 = gen_reg_list geo1 in
+      (* get the list of updated regions *)
+      let reg_list_1 = 
+        List.map (fun reg -> match G.getro reg.R.rid geo1 with Some r -> r | _ -> failwith "Sim.run, no region found") reg_list
+      in
       let geo2,astr2 = 
         List.fold_left (fun geo_astr_acc reg ->
           transfer_from reg s.State.pol s.State.controller_id geo_astr_acc) (geo1,astr1) reg_list_1 in

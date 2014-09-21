@@ -440,7 +440,7 @@ module Coll = struct
         let weight = (sword_weight s) *. 1.1 in
         let mat = Steel in 
         let prop = PS.empty
-          |> PS.add (melee (s*.1.0) 1.0)
+          |> PS.add (melee (s*.1.05) 1.05)
           |> PS.add (`Defense (0.08 +. 0.02 *. float (size-4)))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
@@ -464,9 +464,9 @@ module Coll = struct
         let price = stdprice size in 
         let s = float size in
         let weight = (sword_weight s) *. 2.0 in
-        let mat = if size < 2 then Leather else Steel in 
+        let mat = if size < 1 then Leather else Steel in 
         let prop = PS.empty 
-          |> PS.add (`Defense (0.05 +. 0.07 *. float size))
+          |> PS.add (`Defense (0.07 +. 0.06 *. float size))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Headgear
           |> PS.add (`Material mat) in
