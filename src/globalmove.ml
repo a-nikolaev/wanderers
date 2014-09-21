@@ -106,6 +106,10 @@ let unit_transfer u reg pol b_move_currid (g, astr) =
                 )
             | None -> 
                 (* simply remove the unit *)
+                (match Unit.get_controller u with 
+                  | Some _ -> Printf.printf "Player controlled unit is removed!\n"
+                  | _ -> ()
+                );
                 upd {reg with R.e = E.rm u reg.R.e} g 
           in
           (* actors' transfer works even if the unit is decomposed when leaving the detailed simulation region *)
