@@ -1,43 +1,47 @@
 
 ## Wanderers
 
-An open world roguelike. Currently, at a rather early development stage. 
-Nevertheless, many characteristic features of the game are already implemented, and it is playable.
+An open world adverture / dungeon crawling game. Although the final version is not ready yet,
+many of the characteristic features of the game are already implemented.
 
 [![](http://i.imgur.com/kCdu5qL.png)](http://i.imgur.com/RGIn9hn.png) 
 [![](http://i.imgur.com/ARCqRzW.png)](http://i.imgur.com/bRqoNNG.png) 
 
 ### Features
   * *Multi-scale simulation of a big, but finite, world.* 
-    This means that the area around the player is
-    simulated in detail, while the rest of the world is updated 
-    less precisely. It runs fast too.    
-  * *Semi-continuous grid-based movement and reasonably realistic physics.*
-    It helps to avoid ad hoc discrete time systems, which are
-    usually quite "peculiar".
-    All objects move simulateneously. However, their movement is tied to the grid, 
-    largely preserving the feel of familiar discrete grid-based games.    
-  * Countries and tribes can be at war if their people don't like each other. The underground dungeons 
-    are filled with monsters. A lot of stuff is happening even without your participation. 
-    However, your actions also can change the world. You can try to defend your village surrounded by
-    enemies, or genocide a small neighboring country, if you wish.        
+    The player and the surrounding area are simulated accurately. 
+    Simulteneously, less precise macroscopic scale simulation updates the rest of the world.
+    All actions of each individual actor (including the player) 
+    become seemlessly incorporated into the big picture of the living and evolving world.    
+  * *Semi-continuous grid-based movement and physics.*
+    To avoid ad hoc discrete time systems, which are frequently quite "peculiar",
+    the time is absolutele and continuous, all objects move simulateneously. 
+    However, their movement is tied to the grid, largely preserving the precision and the feel 
+    of familiar grid-based games. The model naturally supports physical interactions between
+    game objects, leading to fun and complex tactical combat.    
+  * The game features multiple civilizations, which may be at war with each other. 
+    You may take part in these wars, or you may go explore underground dungeons
+    and forests infested with monsters.
+    A lot of stuff is happening even without your participation.     
+  * The game is designed to be light on computer resources.   
 
 Half-done:     
 
   * Economics of the world.     
-  * Fully functional player-like NPCs and their hierarchical organizations.   
+  * Fully functional player-like NPC actors and their hierarchical organizations.   
   * Special attacking techniques for some weapons (such as long swords, spears, mauls etc.).   
+  * Complex overworld topology.
 
 Not implemented yet:    
 
   * Spell casting.   
-  * Shops. Interesting NPCs and locations. More complex world topology.   
   * Rumors, information spreading, reputation.    
+  * Shops. More interesting NPCs and locations. More complex world topology.   
   * Apocalyptic events, villains, and winning conditions.    
 
 ### How to build
 On Linux and (probably) OSX. Install the latest `ocaml` package for your system.
-Make sure you have OpenGL drivers installed. Then just execute make.    
+Make sure you have your SDL1.2 and OpenGL libraries installed. Then just execute make.    
   `make`
 
 ### Command line
@@ -54,8 +58,9 @@ Make sure you have OpenGL drivers installed. Then just execute make.
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
 `v` Look mode (`v` or `Enter` to open/close doors, `f` for ranged attack, `Esc` to cancel)   
 `<` `>` Use stairs   
+`+` `-` Faster or slower movement speed    
 `Esc` or `q` Cancel   
-`Ctrl+Q` Save and quit   
+`Ctrl+q` Save and quit   
 
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,
 then press `1` to put it on, `2` to put it in the inventory, or `0` to drop it.
