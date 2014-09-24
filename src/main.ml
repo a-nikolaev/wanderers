@@ -146,29 +146,31 @@ let main () =
       
       let max_seed = 2147483647 in
 
+      let rnd_seed_string () =
+        let len = 1 + Random.int 6 in
+        let s = String.make len 'a' in
+        for i = 0 to len-1 do 
+          let c = Char.chr (Char.code 'a' + Random.int 26) in 
+          s.[i] <- c
+        done;
+        Printf.printf "Random seed: %s\n%!" s;
+        s
+      in
+
+      let hash_string s =
+        Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) 
+      in
+
       if Array.length Sys.argv > 1 then
         let s_prelim = Sys.argv.(1) in
-        let s = 
-          if s_prelim = "?" then 
-          ( let len = 1 + Random.int 6 in
-            let s = String.make len 'a' in
-            for i = 0 to len-1 do 
-              let c = Char.chr (Char.code 'a' + Random.int 26) in 
-              s.[i] <- c
-            done;
-            Printf.printf "Random seed: %s\n%!" s;
-            s
-          )
-          else
-            s_prelim
-        in
-        let seed = Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) in
+        let s = if s_prelim = "?" then rnd_seed_string () else s_prelim in
+        let seed = hash_string s in
         Some seed
       else
       ( if Sys.file_exists "game.save" then 
           None
         else
-          Some (Random.self_init(); Random.int max_seed)
+          Some ( () |> rnd_seed_string |> hash_string )
       )        
     in
     let s = 

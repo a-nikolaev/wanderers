@@ -63,9 +63,10 @@ Make sure you have your SDL1.2 and OpenGL libraries installed. Then just execute
 `Ctrl+q` Save and quit   
 
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,
-then press `1` to put it on, `2` to put it in the inventory, or `0` to drop it.
-Press `Esc` or `q` to close the inventory. Also, don't put a lot of stuff in 
-the inventory. 
+then press `1` to put it on, `2` to put it in the inventory, or `0` to drop it on the ground.
+Press `Esc` or `q` to close the inventory. 
+
+![](http://i.imgur.com/8jVzEue.png)
 
 ### License
 The game is distributed under GPL3 license. 
