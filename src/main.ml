@@ -151,6 +151,7 @@ let main () =
         let s = String.make len 'a' in
         for i = 0 to len-1 do 
           let c = Char.chr (Char.code 'a' + Random.int 26) in 
+          (* Going to use String.set until version 4.02 is everywhere and we can move on to String.init *)
           s.[i] <- c
         done;
         Printf.printf "Random seed: %s\n%!" s;

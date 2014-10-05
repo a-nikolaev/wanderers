@@ -46,6 +46,7 @@ module Tile = struct
     | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | Door of door_state 
     | DungeonFloor | DungeonWall | DungeonDoor of door_state
+    | CaveFloor | CaveWall | CaveDoor of door_state
 
   let get_traction = function
     | IcyGround -> 0.38
@@ -61,9 +62,9 @@ module Tile = struct
 
   let classify = function
     | Grass | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
-    | WoodenFloor | DungeonFloor -> CFloor
-    | Wall | Tree1 | Tree2 | Rock1 | Rock2 | DungeonWall -> CWall
-    | Door s | DungeonDoor s -> CDoor s
+    | WoodenFloor | DungeonFloor | CaveFloor -> CFloor
+    | Wall | Tree1 | Tree2 | Rock1 | Rock2 | DungeonWall | CaveWall -> CWall
+    | Door s | DungeonDoor s | CaveDoor s -> CDoor s
 
   let is_a_door = function
     CDoor _ -> true
@@ -101,7 +102,7 @@ type faction = int
 
 type path = loc list
 
-type timed_action = Attack of (Fencing.technique * int) | Rest | Prepare of action
+type timed_action = Attack of (Fencing.technique * int) | Rest | Prepare of action | Stunned
 
 and op_obj_type = OpObjOpen | OpObjClose
 
@@ -130,8 +131,8 @@ module Species = struct
   let xreaction = function
     | Skeleton, x -> add 0.9 0.05 x
     | SkeletonWar, _ -> 1.0
-    | Zombie, x -> add 1.5 0.05 x
-    | ZombieHulk, _ -> 1.6
+    | Zombie, x -> add 1.5 0.15 x
+    | ZombieHulk, _ -> 1.8
     | Wolf, _ -> 0.7
     | Troll, _ -> 1.2
     | _ -> 1.0
@@ -197,7 +198,7 @@ module Unit = struct
       | Some Male -> (Prob.lognormal 4.29 0.163 -. 50.0) /. 50.0 
       | Some Female -> (Prob.lognormal 4.10 0.168 -. 50.0) /. 50.0 
       | None -> (Prob.lognormal 4.20 0.166 -. 50.0) /. 50.0 in
-      max (-0.2) (min s 2.0)
+      max ((* -0.2 *) 0.0 ) (min s 2.0)
 
     let rnd_prop gender =
       (*
@@ -206,7 +207,9 @@ module Unit = struct
         athletic = 8.0 +. Random.float 8.0 }
       *)
       (*let size = Random.float 1.0 in *)
-      let size = (Prob.lognormal 4.25 0.163 -. 50.0) /. 50.0 in
+      (*let size = (Prob.lognormal 4.25 0.163 -. 50.0) /. 50.0 in *)
+      
+      let size = comp_size gender in
       let smarts = (1.0 -. size) in
 
       (*
@@ -247,7 +250,7 @@ module Unit = struct
       let force = uc.prop.athletic in
       let wg_mass = uc.aux.mass_wield +. 0.25 *. uc.aux.mass_wear +. 0.35 *. uc.aux.mass_headgear +. 0.1 *. uc.aux.mass_carry in
       let sigmoid_decay mean x = 1.0 /. (1.0 +. exp (x -. mean)) in
-      sigmoid_decay (0.5 *. force) wg_mass
+      sigmoid_decay (0.5 *. force) wg_mass 
  
     (* Unencumbered *)
     let comp_melee_unencumbered uc =
@@ -479,7 +482,7 @@ module Unit = struct
  
 
   (* unit *)
-  type notification_type = NtfyDamage of float
+  type notification_type = NtfyDamage of float | NtfyStunned
   type notification = notification_type * float
   type id = int
   
@@ -600,7 +603,18 @@ module Unit = struct
       | _ -> (NtfyDamage dmg, 0.0) :: u.ntfy in
 
     {u with core = core1; vel = u.vel ++. push %%. unitdir; ntfy = nntfy; }
-    
+   
+  let stun u =
+    let nntfy = 
+      match u.ntfy with
+      | _ :: (NtfyStunned, t) :: tl | (NtfyStunned, t) :: tl when t < 1.0 -> u.ntfy
+      | _ -> (NtfyStunned, 0.0) :: u.ntfy 
+    in
+    let dt = 0.2 *. get_default_wait u in
+    {u with 
+      ac = [Timed (None, 0.0, dt, Stunned)];
+      ntfy = nntfy}
+
   let heal dhp u = {u with core = Core.heal dhp u.core}
 
   (* unit to resources *)

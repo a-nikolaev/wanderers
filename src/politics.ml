@@ -69,7 +69,7 @@ let make_fac_prop spec variant =
           agricult = Random.bool(); religious = Random.bool()};
         
         htrm = mk_htrm 0. 10. 
-          RM.([(Plains, 2.); (Mnt, 1.); (SnowMnt, -1.); (ForestMnt,0.); (Forest,0.); (DeepForest,0.); (Swamp,0.); (Dungeon, 6.) ]);
+          RM.([(Plains, 2.); (Mnt, 1.); (SnowMnt, -1.); (ForestMnt,0.); (Forest,0.); (DeepForest,0.); (Swamp,0.); (Dungeon, 6.); (Cave, 6.) ]);
       }
   | Domestic ->
       { fsp = spec; cl = Wild;
@@ -78,7 +78,7 @@ let make_fac_prop spec variant =
         traits = zero_traits; 
         
         htrm = mk_htrm (-6.) (-10.) 
-          RM.([(Plains, 8.); (Mnt, -8.); (SnowMnt, -8.); (ForestMnt,-7.); (Forest,-5.); (DeepForest,-9.); (Swamp,-4.); (Dungeon,-9.) ]);
+          RM.([(Plains, 8.); (Mnt, -8.); (SnowMnt, -8.); (ForestMnt,-7.); (Forest,-5.); (DeepForest,-9.); (Swamp,-4.); (Dungeon,-9.); (Cave,-9.) ]);
       }
   | Wildlife ->
       { fsp = spec; cl = Wild;
@@ -87,7 +87,7 @@ let make_fac_prop spec variant =
         traits = zero_traits; 
         
         htrm = mk_htrm (-10.) (-3.) 
-          RM.([(Plains, 1.); (Mnt, 1.); (SnowMnt, -4.); (ForestMnt,4.); (Forest,11.); (DeepForest,10.); (Swamp,-1.); (Dungeon, -2.) ]);
+          RM.([(Plains, 1.); (Mnt, 1.); (SnowMnt, -4.); (ForestMnt,4.); (Forest,11.); (DeepForest,10.); (Swamp,-1.); (Dungeon, -2.); (Cave, -2.) ]);
       }
 
 let make_variety n =

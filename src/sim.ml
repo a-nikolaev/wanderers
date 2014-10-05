@@ -170,7 +170,9 @@ let move_dv area ue dt dv u =
             else
               {uu with Unit.ac=[Wait (u.Unit.loc,0.0)];}
         | _ -> 
-            uu )
+            (* stun *)
+            Unit.stun uu
+        )
     | _ ->
         {u with Unit.vel=nvel; Unit.pos=u.Unit.pos; ntfy = nntfy; ac = [Wait (u.Unit.loc,0.0)]; transfer}
   )
@@ -277,7 +279,7 @@ let actions_with_objects (reg, u) =
             (reg, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
       )
   | (OperateObj (loc, op))::ac_tl -> 
-      if loc_manhattan(u.Unit.loc -- loc) <= 1 then
+      if loc_infnorm(u.Unit.loc -- loc) <= 1 then
       ( let reg1 = Simobj.toggle_door u loc reg in
         (reg1, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
       )
@@ -327,7 +329,8 @@ let timed dt ( (ue, ((hold_opt, t_passed, t_end, ta) as ta_full), u) as args ) =
   | Rest ->
       let u' = Unit.heal (0.8*.dt) u in
       (ue, ta_full, u')
-  | _ -> args
+  | Prepare _ -> args
+  | Stunned -> args
 
 (* come up with new actions *)
 let intel geo reg pol ue u =

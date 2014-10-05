@@ -239,7 +239,7 @@ let make_geo w h facnum =
     let ylim = h in
     let zlim = 15 in
     let cube = Array.init xlim (fun i -> Array.init ylim (fun j -> Array.init zlim (fun k -> 
-      if k = 0 then true else false 
+      if k = 0 then (Some RM.Plains) else None 
       )))
     in
     let rnd (i,j,k) =
@@ -257,26 +257,30 @@ let make_geo w h facnum =
       i >= 0 && j >= 0 && k >= 0 && i < xlim && j < ylim && k < zlim 
     in
 
-    let rec worm ((i,j,k) as loc) =
+    let rec worm step ((i,j,k) as loc) =
       if ijk_is_inside loc then
-      ( if not cube.(i).(j).(k) then
-        ( cube.(i).(j).(k) <- true; 
-          if Random.int 8 = 0 then worm (rnd loc); 
-          worm (rnd loc) 
-        )
+      ( match cube.(i).(j).(k) with
+        | None ->
+          ( cube.(i).(j).(k) <- 
+              Some (if step > 10 then RM.Cave else RM.Dungeon); 
+            if Random.int 8 = 0 then worm (step+1) (rnd loc); 
+            worm (step+1) (rnd loc) 
+          )
+        | _ -> ()
       )
     in
     for i = 0 to num do
-      worm (Random.int xlim, Random.int ylim, 1)
+      worm 0 (Random.int xlim, Random.int ylim, 1)
     done;
 
     (* transform the cube into the arrays *)
     let add (i,j,k) (rms, locs, ijks) =
-      if cube.(i).(j).(k) then
-        let rm = simple_rm (int_of_float altitude.(i).(j)) RM.Dungeon facnum (float (k-1)) in
-        (rm::rms, (-k,(i,j))::locs, (i,j,k)::ijks)
-      else
-        (rms, locs, ijks)
+      match cube.(i).(j).(k) with
+      | Some biome ->
+          let rm = simple_rm (int_of_float altitude.(i).(j)) biome facnum (float (k-1)) in
+          (rm::rms, (-k,(i,j))::locs, (i,j,k)::ijks)
+      | None -> 
+          (rms, locs, ijks)
     in
 
     let rec fold_cube f acc (i,j,k) =

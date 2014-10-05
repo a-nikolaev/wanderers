@@ -108,11 +108,17 @@ let charmap_std = function
   | '#' -> Tile.Wall
   | _ -> Tile.Grass
 
-let charmap_inv = function
+let charmap_inv_dng = function
   | '#' -> Tile.DungeonFloor
   | 'x' -> Tile.DungeonDoor (tile_open_closed())
   | '.' -> Tile.DungeonWall
   | _ -> Tile.DungeonFloor
+
+let charmap_inv_cave = function
+  | '#' -> Tile.CaveFloor
+  | 'x' -> Tile.CaveDoor (tile_open_closed())
+  | '.' -> Tile.CaveWall
+  | _ -> Tile.CaveFloor
 
 (* returns area and loc0 *)
 let build_dungeon cons_id charmap none_tile w h wtogen htogen =
@@ -202,6 +208,7 @@ let gen pol edges_func rid rm astr =
     | RM.SnowMnt -> Tile.SnowyGround
     | RM.Swamp -> Tile.SwampyGround
     | RM.Dungeon -> Tile.DungeonFloor
+    | RM.Cave -> Tile.CaveFloor
     | _ -> Tile.Grass
   in
 
@@ -219,6 +226,7 @@ let gen pol edges_func rid rm astr =
   | RM.SnowMnt -> [Tile.Tree1,0.0005; Tile.Tree2,0.02; Tile.Rock1, 0.03; Tile.Rock2, 0.03; Tile.Wall,0.001; 
       Tile.IcyGround, 0.05 +. 0.80 *. high_altitude; ground_tile,1.00]
   | RM.Dungeon -> [Tile.DungeonWall,0.2; ground_tile,1.00]
+  | RM.Cave -> [Tile.CaveWall,0.2; ground_tile,1.00]
   | _ -> [Tile.Tree1,0.05; Tile.Tree2,0.05; Tile.Wall,0.05; ground_tile,1.00]
   in
 
@@ -226,10 +234,14 @@ let gen pol edges_func rid rm astr =
     let w = 24 in
     let h = 15 in
     match rm.RM.biome with
-      RM.Dungeon -> 
+    | RM.Dungeon -> 
         (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
         let cons_id = Random.int (Array.length Carve.constructors) in
-        build_dungeon cons_id charmap_inv Tile.DungeonWall w h (w-2) (h-2)
+        build_dungeon cons_id charmap_inv_dng Tile.DungeonWall w h (w-2) (h-2)
+    | RM.Cave -> 
+        (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
+        let cons_id = Random.int (Array.length Carve.constructors) in
+        build_dungeon cons_id charmap_inv_cave Tile.CaveWall w h (w-2) (h-2)
     | _ -> Area.init w h (fun _ _ -> any_from_prob_ls prob_ls ), (0,0) in
 
   (* add constructions *)
@@ -253,7 +265,7 @@ let gen pol edges_func rid rm astr =
   List.iter 
     ( fun (dir, loc0, dloc) ->
         if edges_func dir then
-          let not_a_floor loc = Area.is_within area loc && not ((Area.get area loc |> Tile.classify) = CFloor) in
+          let not_a_floor loc = Area.is_within area loc && not ((Area.get area loc |> Tile.classify) = Tile.CFloor) in
           let rec repeat loc =
             if not_a_floor loc then
             ( Area.set area loc ground_tile;

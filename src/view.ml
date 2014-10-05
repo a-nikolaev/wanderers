@@ -107,6 +107,7 @@ let biome_img b =
   | RM.DeepForest -> (5, 1) 
   | RM.ForestMnt -> (6, 1)
   | RM.Dungeon -> (7, 1)
+  | RM.Cave -> (7, 1)
   | _ -> (0, 0)
 
 let output_characteristics core ((i,j) as ij) =
@@ -173,7 +174,8 @@ let draw_atlas atlas geo =
     if z = cur_z && loc_infnorm (loc -- cur_loc) < maxr then
     ( let img = 
         match rmp.Atlas.biome with
-        | RM.Dungeon -> 
+        | RM.Dungeon 
+        | RM.Cave -> 
             let rid = rmp.Atlas.rid in
             let h dir = if G.get_nb geo rid dir = None then 0 else 1 in
             let dimg = 
@@ -394,6 +396,7 @@ let draw_area_tile_floor t reg rm vision (i,j) =
             | RM.Mnt | RM.ForestMnt -> (2, 0)
             | RM.SnowMnt -> (2, 1)
             | RM.Dungeon -> (4, 0)
+            | RM.Cave -> (4, 1)
             | _ -> (0, 0)
         in
         let def_ground_img_alt = def_ground_img ++ (1, 0) in
@@ -455,11 +458,13 @@ let draw_area_tile_obstacles t reg rm vision (i,j) =
             Tile.Wall -> draw_obj (0,9)
           | Tile.Door ds -> draw_door ds (2,9)
           | Tile.DungeonDoor ds -> draw_door ds (2,7) 
+          | Tile.CaveDoor ds -> draw_door ds (2,11) 
           | Tile.Tree1 -> draw_obj (0,3)
           | Tile.Tree2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (1,3) else (1,5))
           | Tile.Rock1 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (2,3) else (2,5))
           | Tile.Rock2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (3,3) else (3,5))
           | Tile.DungeonWall -> draw_obj (0,7) 
+          | Tile.CaveWall -> draw_obj (0,11) 
           | _ -> () );
       )
   | None -> ()
@@ -479,7 +484,11 @@ let draw_ntfy time u =
         let z1 = 0.4 +. 0.4 *. crit in
         let z2 = 0.3 +. 0.7 *. crit in
         set_color z1 (0.8 -. z1) (0.8 -. z1) ((1.0 -. t /. 4.0) +. z2); 
-        Draw.put_string_vec Unit.(Printf.sprintf "%i" (round x)) Draw.gr_map (u.Unit.pos ++. (0.5*.(crit +. 0.1) *. sin(t), t*.0.4)) )
+        Draw.put_string_vec Unit.(Printf.sprintf "%i" (round x)) Draw.gr_map (u.Unit.pos ++. (0.5*.(crit +. 0.1) *. sin(t), t*.0.4)) 
+      )
+    | Unit.NtfyStunned -> 
+        set_color 0.4 0.4 1.0 0.6; 
+        Draw.put_string_vec "%" Draw.gr_map (u.Unit.pos ++. (0.5*.(0.0 +. 0.1) *. sin(t), t*.0.4)) 
   ) u.Unit.ntfy
 
 
@@ -689,7 +698,7 @@ let draw_state t s =
     (* base color *)
     let r, g, b = 
       match cur_rm.RM.biome with
-      | RM.Dungeon -> 0.74, 0.80, 0.80 
+      | RM.Dungeon | RM.Cave -> 0.74, 0.80, 0.80 
       | _ -> 0.86, 0.84, 0.80
     in
        

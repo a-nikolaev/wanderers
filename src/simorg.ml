@@ -211,8 +211,9 @@ let scenario_meet_a_local pol a opp_core (g,astr) =
   let rid = Actor.get_rid a in
   let my_core = Actor.get_core a in
   if will_we_fight pol my_core opp_core then
+  (  
     let (my_core_upd, opp_core_upd) = fake_fight my_core opp_core in
-
+    
     (* take the resources from the rm *)
     let opp_res = Unit.Core.decompose opp_core in
     let lat_res = rget_lat g rid in 
@@ -234,6 +235,7 @@ let scenario_meet_a_local pol a opp_core (g,astr) =
     (g, astr) 
     |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
     |> update_rid_core_g_astr rid opp_core_upd2
+  )
   else
     (g, astr)
 
@@ -333,8 +335,7 @@ let sim_adventurer pol a (g, astr) =
       | Enc_Nothing ->
           (g, astr)
     )
- | None -> (g, astr)
-
+  | None -> (g, astr)
 
 let heal a =
   Actor.update_core a (Unit.Core.heal 20.0 (Actor.get_core a))
@@ -348,7 +349,6 @@ let sim_one pol a ga =
 
 let run accept_prob pol (geo, astr) = 
   let num = Astr.get_actors_num astr in
-
   (*
   Printf.printf "actors: %i\n%!" num;
   *)

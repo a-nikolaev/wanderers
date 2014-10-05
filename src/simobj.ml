@@ -110,6 +110,7 @@ let toggle_door u loc reg =
       let inv = function Tile.IsOpen -> Tile.IsClosed | Tile.IsClosed -> Tile.IsOpen in
       function
       | Tile.DungeonDoor s -> Tile.DungeonDoor (inv s)
+      | Tile.CaveDoor s -> Tile.CaveDoor (inv s)
       | Tile.Door s -> Tile.Door (inv s)
       | x -> x
     in

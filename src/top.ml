@@ -205,7 +205,7 @@ let economics speedup pol g facnum rid =
     
   let rm = g.G.rm.(rid) in
 
-  if rm.RM.biome <> RM.Dungeon then
+  if rm.RM.biome <> RM.Dungeon && rm.RM.biome <> RM.Cave then
   (
     let cons = rm.RM.cons in
     let len = List.length cons in
@@ -281,6 +281,6 @@ let run speedup pol (g, astr) =
   execute growth;
   execute economics;
   execute migrate;
-
+  
   let g_astr' = sim_actors speedup pol (g, astr) in
   g_astr'

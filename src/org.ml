@@ -292,7 +292,7 @@ end
 module UC = Unit.Core
 (* fake fight simulation  *)
 let fake_fight core1 core2 =
-(*
+(* 
   let msg_melee = [| "  X"; "X  " |] in
   let msg_ranged = [| ">-X"; "X-<" |] in
   let msg_move = [| " >>"; "<< " |] in
