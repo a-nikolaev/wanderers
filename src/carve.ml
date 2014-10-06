@@ -472,21 +472,3 @@ let use_constructor (info, blocks) w h min_blocks_number =
   in
   repeat ()
 
-let constructors = 
-  List.map
-  (fun s -> s |> load_constructor)
-  [ 
-    "data/dg/dng1.au";
-    "data/dg/dng2.au";
-    "data/dg/dng3.au";
-    "data/dg/dng4.au";
-    "data/dg/dng5.au";
-    "data/dg/dng6.au";
-  ] |> Array.of_list
-
-let cons_house =
-  List.map
-  (fun s -> s |> load_constructor)
-  [ 
-    "data/dg/house2.au";
-  ] |> Array.of_list

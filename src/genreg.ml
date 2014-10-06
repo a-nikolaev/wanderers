@@ -18,7 +18,35 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 open Base
 open Common
 open R
- 
+
+let constructors_dng = 
+  List.map
+  (fun s -> s |> Carve.load_constructor)
+  [ 
+    "data/dg/dng1.au";
+    "data/dg/dng2.au";
+    "data/dg/dng3.au";
+    "data/dg/dng4.au";
+    "data/dg/dng5.au";
+    "data/dg/dng6.au";
+  ] |> Array.of_list
+
+let constructors_cave = 
+  List.map
+  (fun s -> s |> Carve.load_constructor)
+  [ 
+    "data/dg/cave1.au";
+    "data/dg/cave2.au";
+    "data/dg/cave3.au";
+  ] |> Array.of_list
+
+let constructors_house =
+  List.map
+  (fun s -> s |> Carve.load_constructor)
+  [ 
+    "data/dg/house2.au";
+  ] |> Array.of_list
+
 
 let add_cons area rm =
   let w = Area.w area in
@@ -121,8 +149,7 @@ let charmap_inv_cave = function
   | _ -> Tile.CaveFloor
 
 (* returns area and loc0 *)
-let build_dungeon cons_id charmap none_tile w h wtogen htogen =
-  let cons = Carve.constructors.(cons_id) in
+let build_dungeon cons charmap none_tile w h wtogen htogen =
   match Carve.use_constructor cons wtogen htogen 5 with
   | Some res -> 
       let actualw = Carve.(res.rect.Rect.w) in
@@ -148,7 +175,7 @@ let build_dungeon cons_id charmap none_tile w h wtogen htogen =
   | None -> Area.make w h none_tile, (0,0)
 
 let add_house a ground_tile (start_x, start_y) wtogen htogen =
-  let (info,_) as cons = Carve.cons_house.(0) in
+  let (info,_) as cons = constructors_house.(0) in
 
   let rec attempt () =
     match Carve.use_constructor cons wtogen htogen 1 with
@@ -233,15 +260,16 @@ let gen pol edges_func rid rm astr =
   let area, loc0 = 
     let w = 24 in
     let h = 15 in
+    let take_any arr = arr.(Random.int (Array.length arr)) in
     match rm.RM.biome with
     | RM.Dungeon -> 
         (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
-        let cons_id = Random.int (Array.length Carve.constructors) in
-        build_dungeon cons_id charmap_inv_dng Tile.DungeonWall w h (w-2) (h-2)
+        let cons = take_any constructors_dng in
+        build_dungeon cons charmap_inv_dng Tile.DungeonWall w h (w-2) (h-2)
     | RM.Cave -> 
         (* maze a Tile.DungeonWall Tile.DungeonFloor (1,1,w-2,h-2); *)
-        let cons_id = Random.int (Array.length Carve.constructors) in
-        build_dungeon cons_id charmap_inv_cave Tile.CaveWall w h (w-2) (h-2)
+        let cons = take_any constructors_cave in
+        build_dungeon cons charmap_inv_cave Tile.CaveWall w h (w-2) (h-2)
     | _ -> Area.init w h (fun _ _ -> any_from_prob_ls prob_ls ), (0,0) in
 
   (* add constructions *)
