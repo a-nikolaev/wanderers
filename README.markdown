@@ -78,7 +78,8 @@ In the future, really light characters will get better magical abilities, but it
 the game yet.
 
 The very first goal is to find some weapon, even a simple stick or a knife will make a big 
-difference. You also may find a good random seed, when you start with weapons. 
+difference. You also may find a good random seed, where you start with weapons. To rest, 
+press `t`, you will recover some HP.
 
 When equipping new items, pay attention to `MBL` (Mobility). When it drops down (say below 0.9), 
 your damage also goes down considerably, and this is not what you want.
