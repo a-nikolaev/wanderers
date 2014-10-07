@@ -85,13 +85,14 @@ your damage also goes down considerably, and this is not what you want.
 
 ### Attributes and properties
 #### Main attributes
-`ATL (Athletic)`. Athletic abilities, strength.  
-`RCT (Reaction)`. Reaction delay. The smaller the better.  
+`ATL (Athletic)`. Athletic abilities, physical strength. Affects both the damage you deal,
+and the speed you move. However, strong characters are also heavy, and so don't move very fast.   
+`RCT (Reaction)`. Reaction delay. Determines all movement and attack delays. The smaller the better.    
 `CNS (Constitution)`. Mass in kilograms. Max HP.  
 
 #### Mobility
 `MBL (Mobility)`. Is equal to 1.0 when not wearing anything. Goes down when encumbered by equipment. 
-Affects the speed of movement, the strength and the duration of your attacks.    
+Affects the speed of movement, reaction time, the strength and the duration of your attacks.    
 `WGT (Total weight)`. The mass of the character, plus the total mass of everything they are carrying.
 
 #### Melee attack
@@ -99,7 +100,7 @@ Affects the speed of movement, the strength and the duration of your attacks.
 `DUR (Duration)`. Melee attack duration.
 
 #### Ranged attack
-`DMG (Damage)`. Damage factor of a projectile.
+`DMG (Damage)`. Damage factor of a projectile.   
 `FRC (Force)`. The momentum a projectile gets.  
 
 #### Defense
