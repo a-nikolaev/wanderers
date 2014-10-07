@@ -64,9 +64,47 @@ Make sure you have your SDL1.2 and OpenGL libraries installed. Then just execute
 
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,
 then press `1` to put it on, `2` to put it in the inventory, or `0` to drop it on the ground.
-Press `Esc` or `q` to close the inventory. 
+Press `Esc` or `q` to close the inventory. There are 5 specialized slots in the equipment 
+container: 1) left hand, 2) torso, 3) right hand, 4) head, 5) slot for coins. (There is no 
+difference between the left and the right hand).
 
 ![](http://i.imgur.com/8jVzEue.png)
+
+### Tips for new players
+When you start playing, first, take a look at your `CNS` (Constitution).
+This is your mass in kilograms, and your max HP. It is better if `CNS` is in the range 65-85.
+Too heavy characeters are a little too slow, and too light characters a a bit too weak.
+In the future, really light characters will get better magical abilities, but it is not in 
+the game yet.
+
+The very first goal is to find some weapon, even a simple stick or a knife will make a big 
+difference. You also may find a good random seed, when you start with weapons. 
+
+When equipping new items, pay attention to `MBL` (Mobility). When it drops down (say below 0.9), 
+your damage also goes down considerably, and this is not what you want.
+
+### Attributes and properties
+#### Main attributes
+`ATL (Athletic)`. Athletic abilities, strength.  
+`RCT (Reaction)`. Reaction delay. The smaller the better.  
+`CNS (Constitution)`. Mass in kilograms. Max HP.  
+
+#### Mobility
+`MBL (Mobility)`. Is equal to 1.0 when not wearing anything. Goes down when encumbered by equipment. 
+Affects the speed of movement, the strength and the duration of your attacks.    
+`WGT (Total weight)`. The mass of the character, plus the total mass of everything they are carrying.
+
+#### Melee attack
+`DMG (Damage)`. Damage rate factor (the damage dealt per unit of time).  
+`DUR (Duration)`. Melee attack duration.
+
+#### Ranged attack
+`DMG (Damage)`. Damage factor of a projectile.
+`FRC (Force)`. The momentum a projectile gets.  
+
+#### Defense
+`DEF (Defense)`. The probability to block an attack. All momentum of the attack is still absorbed,
+so defense does not improve evasion.
 
 ### License
 The game is distributed under GPL3 license. 

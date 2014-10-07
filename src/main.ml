@@ -72,8 +72,10 @@ let process_key_pressed k = function
               | 'v' -> g Msg.Look
               | '<' -> g Msg.UpStairs
               | '>' -> g Msg.DownStairs
+              (*
               | ',' -> g Msg.ScrollBackward
               | '.' -> g Msg.ScrollForward
+              *)
               | '+' -> g Msg.OptsSpeedup
               | '-' -> g Msg.OptsSlowdown
               | _ -> State.Play s
