@@ -87,8 +87,21 @@ let process_key_pressed k = function
       )
   | x -> x
 
-let rec main_loop mode_state prev_ticks =
+let rec main_loop mode_state prev_ticks was_dead =
+
   let ticks = Timer.get_ticks () in
+  
+  let dead_now =
+  ( match mode_state with
+    |  State.Play s -> 
+        ( match s.State.cm with State.CtrlM.Died _ -> true | _ -> false )
+    | _ -> false )
+  in 
+
+  let prev_ticks = if was_dead && not dead_now then ticks else prev_ticks in
+  
+  let is_dead = dead_now in
+
   draw_gl_scene 
     ( fun () -> 
         ( match mode_state with
@@ -114,15 +127,15 @@ let rec main_loop mode_state prev_ticks =
   if mode_state' <> State.Exit then
   ( match poll_event () with
     | Key k -> 
-        main_loop (process_key_pressed k mode_state') ticks
+        main_loop (process_key_pressed k mode_state') ticks is_dead
     | Quit -> 
         (* on exit *)
         ( match mode_state' with
           | State.Play s -> finalize s
           | _ -> ()
         );
-        main_loop State.Exit ticks
-    | _ -> main_loop mode_state' ticks
+        main_loop State.Exit ticks is_dead
+    | _ -> main_loop mode_state' ticks is_dead
   )
 
 let main () =
@@ -139,14 +152,13 @@ let main () =
 	set_caption "Wanderers" "Wanderers";
 	Grafx.init_gl w h;
  
-  (* let b_debug = Array.length Sys.argv > 1 in *)  
-  let b_debug = false in
 
-  let state0 = 
+  let state0 =
+    (*
     (* generate a new map? *)
     let opt_seed =
       
-      let max_seed = 2147483647 in
+      let max_seed = 1000000000 in
 
       let rnd_seed_string () =
         let len = 1 + Random.int 6 in
@@ -179,19 +191,38 @@ let main () =
     let s = 
       match opt_seed with
         Some seed ->
-          Random.init seed;
-          State.initial 25 16 b_debug
+          State.init seed b_debug
       | _ ->
           State.load_from_file "game.save"
     in
     State.Play s
+    *)
+   
+    let s = 
+      if Array.length Sys.argv > 1 then
+      ( let s_prelim = Sys.argv.(1) in
+         
+        let opt_seed = 
+          if s_prelim = "?" then 
+            None
+          else 
+            Some s_prelim 
+        in
+
+        State.init_full opt_seed false
+      )
+      else
+      ( if Sys.file_exists "game.save" then 
+          State.load_from_file "game.save"
+        else
+          State.init_full None false
+      )
+    in
+
+    State.Play s
   in
 
-  (*
-  let state0 = State.Play (State.initial 25 16 b_debug) in 
-  *)
-
-  main_loop state0 (Timer.get_ticks());
+  main_loop state0 (Timer.get_ticks()) false;
 
   quit ()	
 

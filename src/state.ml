@@ -27,6 +27,8 @@ module CtrlM = struct
     | Look of (Unit.t list)
     | Inventory of invprop 
     | WaitInput of (Unit.t list)
+    
+    | Died of float
 end
 
 module Clock = struct
@@ -71,6 +73,8 @@ type t =
     atlas : Atlas.t;
 
     clock : Clock.t;
+
+    clock_last_alive_check : Clock.t;
 
     opts : Options.t;
 
@@ -196,9 +200,43 @@ let make w h debug =
     );
     atlas;
     clock = Clock.zero;
+    clock_last_alive_check = Clock.zero;
     opts = Options.default;
     debug;
   }
+
+
+let init seed b_debug =
+  Random.init seed;
+  make 25 16 b_debug
+
+
+let init_full opt_string b_debug =
+  let max_seed = 1000000000 in
+  let seed =
+    match opt_string with
+    | Some s -> s
+    | None ->
+
+      let rnd_seed_string () =
+        let len = 1 + Random.int 6 in
+        let s = String.make len 'a' in
+        for i = 0 to len-1 do 
+          let c = Char.chr (Char.code 'a' + Random.int 26) in 
+          (* Going to use String.set until version 4.02 is everywhere and we can move on to String.init *)
+          s.[i] <- c
+        done;
+        Printf.printf "Random seed: %s\n%!" s;
+        s
+      in
+      
+      rnd_seed_string()
+  in
+  let hash_string s =
+    Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) 
+  in
+  init (hash_string seed) b_debug
+
 
 let save_to_file s file = 
   let oc = open_out_bin file in
@@ -460,10 +498,10 @@ let respond s =
             upd_one (E.upd {u_upd with Unit.ac = [Wait (u.Unit.loc, 0.0)]} reg.R.e) 
         | _ -> s
       )
-
-let initial w h debug = 
-  let s = make w h debug in
-  s
+  | CtrlM.Died t -> 
+      ( function
+          Msg.Confirm -> init_full None s.debug
+        | _ -> s )
 
 (* ~ game modes *)
 type game_mode = Play of t | Exit

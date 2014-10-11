@@ -606,10 +606,43 @@ let run dt s =
         State.atlas = upd_atlas;
         State.top_rem_dt = 
           s.State.top_rem_dt -. float number *. step_dt; 
+
+        State.clock_last_alive_check = s.State.clock
       }
   | CtrlM.Normal -> 
-      let ns = iterate dt s in
-      (* update vision *)
-      Vision.update_sight (Some ns.State.controller_id) (G.curr ns.State.geo) ns.State.vision;
-      let new_clock = State.Clock.add dt ns.State.clock in
-      {ns with State.top_rem_dt = ns.State.top_rem_dt +. dt; State.clock = new_clock } 
+      
+      let simulate s =
+        let ns = iterate dt s in
+        (* update vision *)
+        Vision.update_sight (Some ns.State.controller_id) (G.curr ns.State.geo) ns.State.vision;
+        let new_clock = State.Clock.add dt ns.State.clock in
+        {ns with State.top_rem_dt = ns.State.top_rem_dt +. dt; State.clock = new_clock } 
+      in
+
+      (* check if the player is still alive *)
+      let alive, s_upd =
+        let no_check_time = State.Clock.get s.State.clock -. State.Clock.get s.State.clock_last_alive_check in
+        if no_check_time > 5.0 then
+          let alive =
+            let reg = G.curr s.State.geo in
+            E.fold (fun b u -> 
+              b || (Unit.get_controller u = Some s.State.controller_id)
+            ) false reg.R.e
+          in
+          ( if alive then
+              (alive, {s with State.clock_last_alive_check = s.State.clock})
+            else
+              (alive, {s with cm = CtrlM.Died 0.0})
+          )
+        else
+          (true, s)
+      in
+
+      if alive then
+        simulate s_upd
+      else
+        s_upd
+
+  | CtrlM.Died t ->
+      {s with cm = CtrlM.Died (t+.dt)}
+

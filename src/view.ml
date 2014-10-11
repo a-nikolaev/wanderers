@@ -872,4 +872,8 @@ let draw_state t s =
       set_color 1.0 1.0 1.0 1.0; 
       let shift = match invclass with State.CtrlM.InvGround -> shift_ground_inv | _ -> shift_unit_inv ic in
       draw_cursor 0 Draw.gr_ui (inv_coords ++ shift ++ (ii,0))
-  | _ -> ()
+  | State.CtrlM.Normal | State.CtrlM.WaitInput _ -> ()
+  | State.CtrlM.Died t ->
+      set_color 0.25 0.25 0.25 (min 1.0 (0.02 *. t));
+      Draw.put_string "press [Enter] to restart" Draw.gr_sml_ui (15, 32)
+
