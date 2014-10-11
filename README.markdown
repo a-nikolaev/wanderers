@@ -1,7 +1,7 @@
 
 ## Wanderers
 
-An open world adverture / dungeon crawling game. Although the final version is not ready yet,
+An open world adventure / dungeon crawling game. Although the final version is not ready yet,
 many of the characteristic features of the game are already implemented.
 
 [![](http://i.imgur.com/kCdu5qL.png)](http://i.imgur.com/RGIn9hn.png) 
