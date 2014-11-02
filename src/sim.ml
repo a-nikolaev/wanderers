@@ -268,11 +268,23 @@ let actions_with_objects (reg, u) =
             let pos = u.Unit.pos ++. uni in
             let dvel = (Unit.(0.5 *. (1.0 +. 0.1 *. Unit.get_athletic u)) *. force/.mass) %%. uni in
             let vel = dvel ++. u.Unit.vel in
-            let projectile = Proj.({item={mass=mass; dmgmult}; pos; vel; }) in
+            let projectile = Proj.({item={mass=mass; dmgmult; tp=Arrow}; pos; vel; }) in
 
             let u = {u with Unit.vel = u.Unit.vel --. (10.0 *. mass /. Unit.get_total_mass u %%. dvel)} in
 
             let reg1 = Simobj.add projectile reg in
+            (* add a magical charge *)
+            let u, reg1 = 
+              let eng = Unit.get_eng u in
+              let cost = max 1.0 (sqrt eng) in
+              if eng > cost && Random.float (Unit.get_max_eng u) < eng then
+                let dmgmult = 0.5 *. eng in
+                let eng_proj = Proj.({item={mass=mass; dmgmult; tp=EngCharge}; pos; vel; }) in
+                ((Unit.add_energy (-.cost) u), Simobj.add eng_proj reg1)
+              else
+                u, reg1
+            in
+
             (reg1, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
 
         | None ->
@@ -331,6 +343,13 @@ let timed dt ( (ue, ((hold_opt, t_passed, t_end, ta) as ta_full), u) as args ) =
       (ue, ta_full, u')
   | Prepare _ -> args
   | Stunned -> args
+
+let timed_better dt u reg =
+  match u.Unit.ac with 
+  | (Timed (hold_opt, t_passed, t_end, ta)) :: tl -> 
+      reg
+  | _ -> reg
+
 
 (* come up with new actions *)
 let intel geo reg pol ue u =
@@ -549,6 +568,10 @@ let run dt s =
 
           (* update projectiles *)
           let reg = Simobj.upd_projectiles def_dt reg in 
+          (* update energy spots *)
+          let reg = Simobj.upd_energyspots def_dt reg in
+          (* update other movable objects *)
+          let reg = Simobj.upd_movls def_dt reg in
 
           (* update units *)
           let upd_reg, upd_astr, upd_acc_need_input = 

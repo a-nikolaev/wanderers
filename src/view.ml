@@ -111,14 +111,19 @@ let biome_img b =
   | _ -> (0, 0)
 
 let output_characteristics core ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 3 (Pos.ui_stat_sml ++ (6, 0)) Draw.gr_sml_ui (ij -- (0,2));
+  Draw.draw_sml_tile_wh 4 4 (Pos.ui_stat_sml ++ (6, 0)) Draw.gr_sml_ui (ij -- (0,3));
   Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_athletic core)) Draw.gr_sml_ui (i+5,j);
   Draw.put_string (Printf.sprintf "%.1f" (Unit.Core.get_reaction core)) Draw.gr_sml_ui (i+5,j-1);
-  Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_own_mass core)) Draw.gr_sml_ui (i+5,j-2)
+  Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_own_mass core)) Draw.gr_sml_ui (i+5,j-2);
+  Draw.put_string (Printf.sprintf "%.2f" (Unit.Core.get_magic_aff core)) Draw.gr_sml_ui (i+5,j-3)
 
 let output_hp core ((i,j) as ij) =
-  Draw.draw_sml_tile_wh 4 1 (Pos.ui_stat_sml ++ (6, 3)) Draw.gr_sml_ui ij;
+  Draw.draw_sml_tile_wh 4 1 (Pos.ui_stat_sml ++ (6, 4)) Draw.gr_sml_ui ij;
   Draw.put_string (Printf.sprintf "%.0f" (Unit.Core.get_hp core)) Draw.gr_sml_ui (i+5,j)
+
+let output_eng core ((i,j) as ij) =
+  Draw.draw_sml_tile_wh 4 1 (Pos.ui_stat_sml ++ (6, 5)) Draw.gr_sml_ui ij;
+  Draw.put_string (Printf.sprintf "%.0f/%.0f" (Unit.Core.get_eng core) (Unit.Core.get_max_eng core)) Draw.gr_sml_ui (i+5,j)
 
 let output_melee melee ((i,j) as ij) =
   Draw.draw_sml_tile_wh 4 2 (Pos.ui_stat_sml ++ (0, 0)) Draw.gr_sml_ui (ij -- (0,1));
@@ -345,13 +350,19 @@ let draw_projectiles t reg vision =
         let visible_somewhat = is_visible_somewhat reg.R.a vision pj.Proj.pos in
         
         if visible_well || visible_somewhat then
-        ( let red,green,blue = 1.0, 1.0, 1.0 in
-          if visible_well then
-            set_color red green blue 1.0
-          else
-            set_color (0.1+.0.2*.red) (0.1+.0.2*.green) (0.1+.0.2*.blue) 0.5;
+        ( 
+          let proj_type, colors = match pj.Proj.item.Proj.tp with 
+            | Proj.Arrow -> (0, 0), (1.0, 1.0, 1.0, 1.0)
+            | Proj.EngCharge -> (2, 0), (0.8, 0.3, 1.0, 0.6 *. (min 1.0 pj.Proj.item.Proj.dmgmult)) 
+          in
 
-          let img = 2 %% (Pos.items ++ (0, 13)) in
+          let red,green,blue,alpha = colors in
+          if visible_well then
+            set_color red green blue alpha
+          else
+            set_color (0.1+.0.2*.red) (0.1+.0.2*.green) (0.1+.0.2*.blue) (0.5 *. alpha);
+
+          let img = 2 %% (Pos.items ++ (0, 13) ++ proj_type) in
           Draw.draw_sml_tile_vec (img ++ dimg) Draw.gr_map (pj.Proj.pos ++. dpos); 
 
           (* Draw.draw_bb_vec (9.0, 17.0) pj.Proj.pos; *) 
@@ -378,6 +389,65 @@ let draw_stairs t reg vision (stt, loc) =
 
     Draw.draw_tile_high img Draw.gr_map loc
   )
+
+(* Movable objects (including Magic) *)  
+let draw_movls t reg u vision =
+  let ls = reg.R.obj.R.Obj.movls in
+
+  let magic_aff = Unit.get_magic_aff u in
+
+  let min_visible_pow = 5.0 *. (1.0 -. magic_aff) in
+
+  List.iter 
+    ( function 
+      | R.Obj.Magical obj ->
+          let loc, vec, pow, time = match obj with
+            R.Obj.Spark (loc, vec, pow, time) -> (loc, vec, pow, time)
+          in
+
+          let visible_well = is_visible_well vision loc in
+          let visible_somewhat = is_visible_somewhat reg.R.a vision vec in
+          
+          if (visible_well || visible_somewhat) && pow > min_visible_pow then
+          ( let red,green,blue = 0.8, 0.3, 1.0 in
+
+            let brightness = min ((pow -. min_visible_pow) *. magic_aff) 0.6 in
+            
+            let red, green, blue, alpha =
+              if visible_well then
+                (red, green, blue, 1.0 *. brightness)
+              else
+                (0.1+.0.7*.red, 0.1+.0.7*.green, 0.1+.0.7*.blue, 0.3 *. brightness)
+            in
+            
+            (* animation frame *)
+            let duration = 4.0 in
+            let frames_num = 5.0 in
+            let frame = 
+              let frac = (time /. duration) in
+              (frac *. frames_num) |> floor |> int_of_float
+            in
+
+            let opt_img =
+              if pow > 0.0 then 
+                Some (Pos.ui_dyn ++ (4 + frame, 2))
+              else
+                None
+            in  
+            ( match opt_img with
+              | Some img -> 
+                  
+                  set_color red green blue (0.2*.alpha);
+                  Draw.draw_tile_high_vec (img ++ (0,2)) Draw.gr_map vec;
+                  
+                  set_color red green blue alpha;
+                  Draw.draw_tile_high_vec img Draw.gr_map vec
+
+              | _ -> ()
+            )
+          )
+    ) ls
+
 
 (* Area one tile *)
 let draw_area_tile_floor t reg rm vision (i,j) = 
@@ -568,11 +638,12 @@ let draw_unit t s reg eval_unit_strength u_controlled_strength u =
       (* Player's Stats *)
       let char_ij = (50, 32) in
       output_characteristics (Unit.get_core u) (char_ij ++ (0,0));
-      output_hp (Unit.get_core u) (char_ij ++ (0,-4));
-      output_mobility (Unit.get_core u) (char_ij ++ (0,-6));
-      output_melee (Unit.get_melee u) (char_ij ++ (0,-9));
-      output_ranged (Unit.get_ranged u) (char_ij ++ (0,-12));
-      output_defense (Unit.get_defense u) (char_ij ++ (0, -15));
+      output_hp (Unit.get_core u) (char_ij ++ (0,-5));
+      output_eng (Unit.get_core u) (char_ij ++ (0,-6));
+      output_mobility (Unit.get_core u) (char_ij ++ (0,-7));
+      output_melee (Unit.get_melee u) (char_ij ++ (0,-10));
+      output_ranged (Unit.get_ranged u) (char_ij ++ (0,-13));
+      output_defense (Unit.get_defense u) (char_ij ++ (0, -16));
 
       let fnctq = Fencing.get_tq u.Unit.fnctqn in
       Draw.put_string Unit.(Printf.sprintf "%s" (fnctq.Fencing.name)) Draw.gr_sml_ui (40,0);
@@ -756,6 +827,14 @@ let draw_state t s =
   (* draw projectiles *)
   set_color 1.0 1.0 1.0 1.0; 
   draw_projectiles t reg s.State.vision;
+ 
+  (* movable objects *)
+  (
+    match u_controlled with
+      Some u -> 
+        draw_movls t reg u s.State.vision
+    | None -> ()
+  );
   
   set_color 1.0 1.0 1.0 1.0;
   if s.State.debug then

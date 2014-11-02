@@ -25,6 +25,7 @@ open Draw *)
 open Glcaml
 
 open View
+open Base
 
 open Printf
 
@@ -253,17 +254,17 @@ let test_fake_fight () =
 
 let test_bwc () =
   let len = 15 in
-  let c = Org.Bwc.make len in
-  let c = Org.Bwc.add 0 1.0 c in
-  let c = Org.Bwc.add 4 1.0 c in
-  let c = Org.Bwc.add 5 1.0 c in
-  let c = Org.Bwc.add 10 1.0 c in
+  let c = Bwc.make len in
+  let c = Bwc.add 0 1.0 c in
+  let c = Bwc.add 4 1.0 c in
+  let c = Bwc.add 5 1.0 c in
+  let c = Bwc.add 10 1.0 c in
   for i = 0 to len-1 do
-    printf "%i\t %g\t %g \n" i c.Org.Bwc.cur.(i) c.Org.Bwc.sum.(i)
+    printf "%i\t %g\t %g \n" i c.Bwc.cur.(i) c.Bwc.sum.(i)
   done;
   let rec repeat x dx xmax =
     if x < xmax then
-    ( let i = Org.Bwc.binary_search c x in
+    ( let i = Bwc.binary_search c x in
       printf "%g -> %i\n" x i;
       repeat (x+.dx) dx xmax
     )

@@ -100,52 +100,6 @@ end
 module Ma = Map.Make(struct type t = Actor.id let compare = compare end)
 module Sa = Set.Make(struct type t = Actor.id let compare = compare end)
 
-(* Bin Weighted Counter - for log-time random selection/update *)
-module Bwc = struct
-  type t = {sum: float array; cur: float array; total: float}
-
-  (* 8 -> 9 -> 11 -> 15 -> 31 -> ... *)
-  let rec next x = if x land 1 = 1 then ((next (x asr 1)) lsl 1 + 1) else x + 1 
-  
-  let make size = {sum = Array.make size 0.0; cur = Array.make size 0.0; total = 0.0 }
-
-  let rec propagate bwc i wg =
-    bwc.sum.(i) <- bwc.sum.(i) +. wg;
-    let i' = next i in
-    if i' < Array.length bwc.sum then
-      propagate bwc i' wg 
-
-  let add i wg bwc = 
-    bwc.cur.(i) <- bwc.cur.(i) +. wg;
-    propagate bwc i wg;
-    {bwc with total = bwc.total +. wg}
-
-  (* locate the bin containing x *)
-  let binary_search bwc x =
-    let top = Array.length bwc.sum in
-
-    let rec search x di =
-      if di < top then
-      ( let (i, wg) = search x (di lsl 1 + 1) in
-        let i' = (i + 1) lor di in
-        if i' < top then
-        ( let wg' = wg +. bwc.sum.(i') in
-          if wg' -. bwc.cur.(i') < x then
-            (i', wg')
-          else
-            (i, wg)
-        ) 
-        else
-          (i, wg)
-      )
-      else
-        (0, 0.0)
-    in
-    fst(search x 0)
-
-  let random bwc = binary_search bwc (Random.float bwc.total)
-end
-
 module Astr = struct
   (* 
    ma is the map aid -> actor

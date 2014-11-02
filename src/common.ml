@@ -86,7 +86,8 @@ type edge_type = East | North | West | South | Up | Down | Other
 
 (* Projectile *)
 module Proj = struct
-  type prop = {mass:float; dmgmult:float}
+  type tp = Arrow | EngCharge
+  type prop = {mass:float; dmgmult:float; tp:tp}
   type t = {pos:vec; vel:vec; item:prop;}
   let move dt p = 
     let a = (-0.05 /. p.item.mass) %%. p.vel in
@@ -159,7 +160,10 @@ module Species = struct
     | Bear, _ -> 3.5
     | Troll, _ -> 2.2
     | _ -> 1.0
-  
+ 
+  let xmagic_aff = function
+    | _ -> 1.0
+
   let xbasedmg = function
     | Wolf, _ -> 1.5
     | Bear, _ -> 2.0
@@ -184,7 +188,16 @@ end
 
 module Unit = struct
   module Core = struct
-    type properties = {reaction:float; mass:float; radius:float; athletic:float; basedmg:float; courage:float;}
+    type properties = {
+      athletic:float; 
+      reaction:float; 
+      mass:float; 
+      magic_aff:float;
+      max_eng:float;
+      radius:float; 
+      basedmg:float; 
+      courage:float;
+    }
     type aux = {mass_carry: float; mass_wear: float; mass_headgear: float; mass_wield: float; 
       unenc_melee: Item.Melee.t; unenc_ranged: Item.Ranged.t option; unenc_defense: float;
       fm: float;
@@ -207,7 +220,8 @@ module Unit = struct
         athletic = 8.0 +. Random.float 8.0 }
       *)
       (*let size = Random.float 1.0 in *)
-      (*let size = (Prob.lognormal 4.25 0.163 -. 50.0) /. 50.0 in *)
+      (*let size = (Prob.lognormal 4.25 0.163 -. 50.0) /. 50.thletic u = u.core.Core.prop.Core.athletic
+       * 0 in *)
       
       let size = comp_size gender in
       let smarts = (1.0 -. size) in
@@ -219,24 +233,32 @@ module Unit = struct
 
       let reaction = 0.5 +. 0.8 *. (1.0 -. smarts) in
       let mass = 50.0 +. 50.0 *. size in
+      
+      let magic_aff = 0.05 +. 0.95 *. (abs_float (0.75 -. size) /. 0.75)**1.8 |> max 0.0 |> min 1.5 in
+      let max_eng = magic_aff *. 16.0 |> round |> float in
 
       let noize () = 0.025 *. (Random.float 1.0 -. 0.5) in
       let athletic = athletic *. (1.0 +. noize()) in 
       let reaction = reaction *. (1.0 +. noize())in
       let mass = mass *. (1.0 +. noize()) in
-      
+      let magic_aff = magic_aff *. (1.0 +. noize()) +. Random.float 0.05 in
+
       (* Printf.printf "[%g, m=%g] \n%!" size mass; *)
 
       { athletic;
         reaction;
         mass;
+        magic_aff;
+        max_eng;
         radius = comp_radius mass;
         basedmg = 1.0; 
         courage = 1.5;
       }
+
     type t = {
       fac:faction; sp:Species.t; gender: gender option;
       hp: float;
+      eng: float;
       controller: int option;
       prop: properties;
       inv: Inv.t;
@@ -369,11 +391,14 @@ module Unit = struct
     let get_fac uc = uc.fac
  
     let get_hp uc = uc.hp
+    let get_eng uc = uc.eng
     
     let get_max_hp uc = uc.prop.mass
 
     let get_reaction uc = uc.prop.reaction
     let get_athletic uc = uc.prop.athletic
+    let get_magic_aff uc = uc.prop.magic_aff
+    let get_max_eng uc = uc.prop.max_eng
     let get_own_mass uc = uc.prop.mass
     let get_courage uc = uc.prop.courage
     
@@ -403,6 +428,7 @@ module Unit = struct
         {uc with hp = uc.hp -. dmg_defended} )
   
     let heal dhp uc = {uc with hp = min (uc.hp +. dhp) uc.prop.mass}
+    let add_energy d uc = {uc with eng = (uc.eng +. d) |> min uc.prop.max_eng |> max 0.0 }
 
     let upd_inv inv uc = adjust_aux_info {uc with inv}
     
@@ -414,13 +440,15 @@ module Unit = struct
           Species.Hum, _ -> (match Random.int 2 with 0 -> Some Male | _ -> Some Female)
         | _ -> None
       in
-      let {reaction; mass; radius; athletic; basedmg; courage} = rnd_prop gender in
+      let {reaction; mass; radius; athletic; magic_aff; max_eng; basedmg; courage} = rnd_prop gender in
       let prop = 
         {
+        athletic = athletic*.Species.xathletic sp;
         reaction = reaction *. Species.xreaction sp; 
         mass = mass*.Species.xmass sp;
+        magic_aff = magic_aff *. Species.xmagic_aff sp;
+        max_eng = max_eng;
         radius = comp_radius (mass *. Species.xmass sp);
-        athletic = athletic*.Species.xathletic sp;
         basedmg = basedmg *. Species.xbasedmg sp;
         courage = courage;
         } in
@@ -434,7 +462,10 @@ module Unit = struct
         defense = 0.0;
         } in
       let uc =
-        { fac; sp; prop; hp = prop.mass; controller = controller;
+        { fac; sp; prop; 
+          hp = prop.mass;
+          eng = 0.0;
+          controller = controller;
           inv = Inv.default;
           aux;
           gender;
@@ -538,9 +569,12 @@ module Unit = struct
   let get_controller u = u.core.Core.controller
   
   let get_hp u = u.core.Core.hp
+  let get_eng u = u.core.Core.eng
 
   let get_reaction u = u.core.Core.prop.Core.reaction
   let get_athletic u = u.core.Core.prop.Core.athletic
+  let get_magic_aff u = u.core.Core.prop.Core.magic_aff
+  let get_max_eng u = u.core.Core.prop.Core.max_eng
   let get_courage u = Core.get_courage u.core
 
   let get_default_wait u = Core.get_default_wait u.core
@@ -616,6 +650,7 @@ module Unit = struct
       ntfy = nntfy}
 
   let heal dhp u = {u with core = Core.heal dhp u.core}
+  let add_energy d u = {u with core = Core.add_energy d u.core}
 
   (* unit to resources *)
   let decompose u = Core.decompose u.core
@@ -822,9 +857,17 @@ module R = struct
     (* positional object type *)
     type door_state = Open | Closed
     type pos_obj_type = Door of door_state
-    
-    type t = {projls:Proj.t list; stairsls: stairs list; posobj: (pos_obj_type option) Area.t}
-    let empty w h = {projls=[]; stairsls = []; posobj = Area.make w h None }
+
+    type magical_obj = Spark of (loc * vec * float * float)
+    type movable_obj = Magical of magical_obj
+
+    type energy_spot = loc * float
+
+    type t = {projls:Proj.t list; stairsls: stairs list; posobj: (pos_obj_type option) Area.t; 
+      movls : movable_obj list; 
+      energyspots : (energy_spot * float) list 
+    }
+    let empty w h = {projls=[]; stairsls = []; posobj = Area.make w h None; movls = []; energyspots = []}
   end
 
   type t = {

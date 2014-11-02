@@ -35,3 +35,28 @@ let normal mu sigma = normal_std() *. sigma +. mu
 let normal_s2 mu sigma2 = normal_std() *. (sqrt sigma2) +. mu
 
 let lognormal mu sigma = exp(normal mu sigma)
+
+(* Exponential(lambda)
+ *   returns the time to the next event.
+ *   lambda is the rate at which the event occures.
+ *)
+let exponential lam =
+  let u = uniform 1.0 in
+  -. (log u /. lam)
+
+(* Poisson(lambda) 
+ *   returns the number of times an event occures in the unit time interval
+ *   lambda is the rate at which it occures
+ *)
+let poisson lam =
+  let lim = exp(-.lam) in
+  let rec next k p =
+    let p' = p *. uniform 1.0 in
+    if p' > lim then next (k+1) p' else k
+  in
+  next 0 1.0 
+
+let poisson_in_dt lam dt = 
+  poisson (lam *. dt)
+
+

@@ -125,3 +125,86 @@ let toggle_door u loc reg =
   )
   else
     reg
+
+let upd_one_movobj dt reg movobj =
+  match movobj with
+    | R.Obj.Magical (R.Obj.Spark (loc, vec, pow, t)) ->
+        let t' = t +. dt in
+        let pow' = pow *. exp(-.0.1*.dt) in
+        if t' < 4.0 && pow > 0.05 then 
+          Some (R.Obj.Magical (R.Obj.Spark (loc, vec, pow', t')))
+        else
+          None
+
+let upd_energyspots dt reg =
+  let ls = reg.R.obj.R.Obj.energyspots in
+  if List.length ls < 1 then
+    let energyspots = fold_lim (fun acc _ -> 
+        let loc = find_walkable_location_reg reg in
+        let pow = (Prob.normal 1.0 1.0) |> min 0.1 |> max 4.0 in
+        ((loc, pow), pow)::acc
+      ) [] 0 (1 + Random.int 2 + Random.int 2 + Random.int 2) in
+    {reg with R.obj = {reg.R.obj with R.Obj.energyspots = energyspots}}
+  else
+    reg
+
+let upd_movls dt reg = 
+  (* move the existing ones *)
+  let movls = 
+    List.fold_left 
+      (fun acc mo -> 
+        match upd_one_movobj dt reg mo with
+          Some umo -> umo :: acc
+        | _ -> acc
+      ) [] reg.R.obj.R.Obj.movls 
+  in
+  
+  (* give energy to units *)
+  let reg =
+    let ue =
+      List.fold_left 
+        (fun e_acc mo -> 
+          match mo with
+          | R.Obj.Magical (R.Obj.Spark (loc, vec, pow, t)) ->
+              let nb = E.collisions_nb_vec vec e_acc in
+              let num = List.length nb in
+              if num > 0 then
+                let mag = 0.1 *. pow *. dt /. float num in
+                List.fold_left (fun e_acc u ->
+                  let u' = Unit.add_energy (mag *. (Unit.get_magic_aff u)) u in
+                  E.upd u' e_acc
+                ) e_acc nb
+              else
+                e_acc
+          | _ -> e_acc
+        ) reg.R.e reg.R.obj.R.Obj.movls 
+    in 
+    {reg with R.e = ue}
+  in
+
+  (* add new ones *)
+  let energyspots = reg.R.obj.R.Obj.energyspots in
+  let spark_rate = List.fold_left (fun acc (_, rate) -> acc +. rate) 0.0 energyspots in
+
+  let num = Prob.poisson_in_dt (0.2 *. spark_rate) dt in  
+  let find_location_lambda () =
+    let loc, pow = any_from_rate_ls energyspots in
+    loc, ((2.0 -. pow) |> max 0.5)
+  in
+
+  let movls =
+    fold_lim (fun acc _ -> 
+        let loc, lambda = 
+          if Random.int 5 > 0 then find_location_lambda() else (find_walkable_location_reg reg, 1.0) 
+        in
+        let vec = 
+          let phi = Random.float (2.0 *. 3.141592) in
+          let r = Prob.normal 0.4 0.15 in
+          vec_of_loc loc ++. (r *. cos phi, r *. sin phi -. 0.2)
+        in
+        let pow = Prob.exponential lambda in
+        R.Obj.Magical(R.Obj.Spark (loc, vec, pow, 0.0)) :: acc
+      ) movls 1 num
+  in
+  {reg with R.obj = {reg.R.obj with R.Obj.movls = movls}}
+
