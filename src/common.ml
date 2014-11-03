@@ -95,7 +95,7 @@ module Proj = struct
     let pos = p.pos ++. (dt *. 0.5) %%. (vel ++. p.vel) in
     let dmgmult =
       match p.item.tp with
-      | EngCharge -> exp(-0.5 *. dt) *. p.item.dmgmult
+      | EngCharge -> exp(-0.1 *. dt) *. p.item.dmgmult
       | _ -> p.item.dmgmult
     in
     {pos; vel; item = {p.item with dmgmult}} 

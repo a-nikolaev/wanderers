@@ -481,11 +481,11 @@ let timed_better dt u reg =
                 if eng > cost && Random.float 1.0 < (eng /. (Unit.get_max_eng u))**2.0 then
                   (* create a projectile *)
                   let dloc = Fencing.dloc_of_dir_index dir_index in
-                  let pos = u.Unit.pos ++. vec_of_loc dloc in
+                  let pos = u.Unit.pos ++. 0.5 %%. vec_of_loc dloc in
                   let dvel = 0.5 %%. vec_of_loc dloc in
-                  let vel = dvel ++. u.Unit.vel in
+                  let vel = dvel ++. 0.2 %%. u.Unit.vel in
                   let dmgmult = 2.0 *. eng in
-                  let drag = 4.0 in
+                  let drag = 2.0 in
                   let mass = eng *. 0.5 in
                   let eng_proj = Proj.({item={mass=mass; dmgmult; drag; tp=EngCharge}; pos; vel; }) in
                   (conserve_momentum eng_proj (Unit.add_energy (-.cost) u), Simobj.add eng_proj reg)
