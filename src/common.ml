@@ -86,14 +86,19 @@ type edge_type = East | North | West | South | Up | Down | Other
 
 (* Projectile *)
 module Proj = struct
-  type tp = Arrow | EngCharge
-  type prop = {mass:float; dmgmult:float; tp:tp}
+  type tp = Arrow | EngCharge | EngBolt
+  type prop = {mass:float; dmgmult:float; drag:float; tp:tp}
   type t = {pos:vec; vel:vec; item:prop;}
   let move dt p = 
-    let a = (-0.05 /. p.item.mass) %%. p.vel in
+    let a = (-. p.item.drag /. p.item.mass) %%. p.vel in
     let vel = p.vel ++. dt %%. a in
     let pos = p.pos ++. (dt *. 0.5) %%. (vel ++. p.vel) in
-    {p with pos; vel} 
+    let dmgmult =
+      match p.item.tp with
+      | EngCharge -> exp(-0.5 *. dt) *. p.item.dmgmult
+      | _ -> p.item.dmgmult
+    in
+    {pos; vel; item = {p.item with dmgmult}} 
   
   let getdir pj = Dir8.of_vec pj.vel
 

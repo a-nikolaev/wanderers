@@ -353,7 +353,8 @@ let draw_projectiles t reg vision =
         ( 
           let proj_type, colors = match pj.Proj.item.Proj.tp with 
             | Proj.Arrow -> (0, 0), (1.0, 1.0, 1.0, 1.0)
-            | Proj.EngCharge -> (2, 0), (0.8, 0.3, 1.0, 0.6 *. (min 1.0 pj.Proj.item.Proj.dmgmult)) 
+            | Proj.EngBolt -> (2, 0), (0.8, 0.3, 1.0, 0.6 *. (min 1.0 pj.Proj.item.Proj.dmgmult)) 
+            | Proj.EngCharge -> (4, 0), (0.8, 0.3, 1.0, 0.6 *. (min 1.0 pj.Proj.item.Proj.dmgmult)) 
           in
 
           let red,green,blue,alpha = colors in
@@ -361,11 +362,23 @@ let draw_projectiles t reg vision =
             set_color red green blue alpha
           else
             set_color (0.1+.0.2*.red) (0.1+.0.2*.green) (0.1+.0.2*.blue) (0.5 *. alpha);
-
-          let img = 2 %% (Pos.items ++ (0, 13) ++ proj_type) in
-          Draw.draw_sml_tile_vec (img ++ dimg) Draw.gr_map (pj.Proj.pos ++. dpos); 
-
-          (* Draw.draw_bb_vec (9.0, 17.0) pj.Proj.pos; *) 
+          
+          ( match pj.Proj.item.Proj.tp with
+          | Proj.EngCharge ->
+              let dimg =
+                match Proj.getdir pj with
+                | Dir8.E -> (0,0)
+                | Dir8.N | Dir8.NW | Dir8.NE-> (1,0)
+                | Dir8.W -> (2,0)
+                | Dir8.S | Dir8.SW | Dir8.SE -> (3,0)
+              in
+              let img = (Pos.items ++ (4, 14)) in
+              Draw.draw_tile_vec (img ++ dimg) Draw.gr_map pj.Proj.pos
+          | _ -> 
+              let img = 2 %% (Pos.items ++ (0, 13) ++ proj_type) in
+              Draw.draw_sml_tile_vec (img ++ dimg) Draw.gr_map (pj.Proj.pos ++. dpos); 
+              (* Draw.draw_bb_vec (9.0, 17.0) pj.Proj.pos; *) 
+          )
         )
     ) ls
 

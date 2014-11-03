@@ -256,6 +256,10 @@ let adjust a u =
       else
         u1
 
+(* projectile shooting - momentum conservation *)
+let conserve_momentum proj u = 
+  {u with Unit.vel = u.Unit.vel --. (10.0 *. proj.Proj.item.Proj.mass /. Unit.get_total_mass u %%. (proj.Proj.vel --. u.Unit.vel))}
+
 (* Firing projectiles *)
 let actions_with_objects (reg, u) =
   match u.Unit.ac with
@@ -268,19 +272,23 @@ let actions_with_objects (reg, u) =
             let pos = u.Unit.pos ++. uni in
             let dvel = (Unit.(0.5 *. (1.0 +. 0.1 *. Unit.get_athletic u)) *. force/.mass) %%. uni in
             let vel = dvel ++. u.Unit.vel in
-            let projectile = Proj.({item={mass=mass; dmgmult; tp=Arrow}; pos; vel; }) in
-
+            let drag = 0.05 in
+            let projectile = Proj.({item={mass=mass; dmgmult; drag; tp=Arrow}; pos; vel; }) in
+            
+            (*
             let u = {u with Unit.vel = u.Unit.vel --. (10.0 *. mass /. Unit.get_total_mass u %%. dvel)} in
+            *)
+            let u = conserve_momentum projectile u in
 
             let reg1 = Simobj.add projectile reg in
-            (* add a magical charge *)
+            (* add a magical bolt *)
             let u, reg1 = 
               let eng = Unit.get_eng u in
               let cost = max 1.0 (sqrt eng) in
               if eng > cost && Random.float (Unit.get_max_eng u) < eng then
                 let dmgmult = 0.5 *. eng in
-                let eng_proj = Proj.({item={mass=mass; dmgmult; tp=EngCharge}; pos; vel; }) in
-                ((Unit.add_energy (-.cost) u), Simobj.add eng_proj reg1)
+                let eng_proj = Proj.({item={mass=mass; dmgmult; drag; tp=EngBolt}; pos; vel; }) in
+                (conserve_momentum eng_proj (Unit.add_energy (-.cost) u), Simobj.add eng_proj reg1)
               else
                 u, reg1
             in
@@ -315,41 +323,6 @@ let deal_damage dt fnctgt u tu ue =
 
   (E.upd tu' ue)
 
-(* timed actions - does not change actions of u, they are changed by the function 'run' 
- * this function should do damage and affect units
- *)
-let timed dt ( (ue, ((hold_opt, t_passed, t_end, ta) as ta_full), u) as args ) =
-  match ta with
-  | Attack (tq, dir_index) ->
-    let fnctgt_ls, _ = Fencing.get_tgtls_and_stage dt t_passed t_end tq dir_index in
-    let ue' =
-      List.fold_left (fun ue fnctgt ->
-        let dl = fnctgt.Fencing.dloc in
-        let loc = u.Unit.loc ++ dl in
-        let ls1 = if (loc_manhattan dl = 1) then E.at u.Unit.loc ue else [] in
-        let ls2 = E.at loc ue in
-        let fls1 = List.filter (fun tu -> vec_dot_prod Unit.(tu.pos --. u.pos) (vec_of_loc dl) > 0.0) ls1 in
-        let ls = List.rev_append fls1 ls2 in
-        ( match any_from_ls ls with
-          | None -> ue
-          | Some tu -> deal_damage dt fnctgt u tu ue
-        )
-      )
-      ue fnctgt_ls 
-    in
-    (ue', ta_full, u)
-  | Rest ->
-      let u' = Unit.heal (0.8*.dt) u in
-      (ue, ta_full, u')
-  | Prepare _ -> args
-  | Stunned -> args
-
-let timed_better dt u reg =
-  match u.Unit.ac with 
-  | (Timed (hold_opt, t_passed, t_end, ta)) :: tl -> 
-      reg
-  | _ -> reg
-
 
 (* come up with new actions *)
 let intel geo reg pol ue u =
@@ -364,12 +337,7 @@ let intel geo reg pol ue u =
       List.concat [ f(0,1); f(0,-1); f(1,0); f(-1,0) ] in
     match any_from_ls enemies with
       Some tu ->
-        let dir_index = match Unit.(tu.loc--u.loc) with
-          | (1,0) -> 0 
-          | (0,1) -> 1
-          | (-1,0) -> 2
-          | _ -> 3
-        in
+        let dir_index = Fencing.dir_index_of_dloc Unit.(tu.loc--u.loc) in
         let melee = Unit.get_melee u in
         let weapon_duration = melee.Item.Melee.duration in
         let tq = Fencing.get_tq u.Unit.fnctqn in
@@ -475,6 +443,85 @@ let pick_up_items (u, reg) =
 
   | _ -> u
 
+let timed_better dt u reg =
+  match u.Unit.ac with 
+  | (Timed (hold_opt, t_passed, t_end, ta)) :: tl -> 
+        let t_passed_upd = t_passed +. dt in
+
+        (* apply the action *)
+        let upd_reg u reg = {reg with R.e = E.upd u reg.R.e} in
+
+        let u, reg =
+          match ta with
+          | Attack (tq, dir_index) ->
+            let ue = reg.R.e in
+            let fnctgt_ls, _ = Fencing.get_tgtls_and_stage dt t_passed_upd t_end tq dir_index in
+            let ue' =
+              List.fold_left (fun ue fnctgt ->
+                let dl = fnctgt.Fencing.dloc in
+                let loc = u.Unit.loc ++ dl in
+                let ls1 = if (loc_manhattan dl = 1) then E.at u.Unit.loc ue else [] in
+                let ls2 = E.at loc ue in
+                let fls1 = List.filter (fun tu -> vec_dot_prod Unit.(tu.pos --. u.pos) (vec_of_loc dl) > 0.0) ls1 in
+                let ls = List.rev_append fls1 ls2 in
+                ( match any_from_ls ls with
+                  | None -> ue
+                  | Some tu -> deal_damage dt fnctgt u tu ue
+                )
+              )
+              ue fnctgt_ls 
+            in
+
+            (* add an eng melee projectile *)
+            (* add a magical bolt *)
+            let u, reg = 
+              if t_passed < 0.5 *. t_end && t_passed_upd >= 0.5 *. t_end then
+              ( let eng = Unit.get_eng u in
+                let cost = max 1.0 (0.5 *. eng) in
+                if eng > cost && Random.float 1.0 < (eng /. (Unit.get_max_eng u))**2.0 then
+                  (* create a projectile *)
+                  let dloc = Fencing.dloc_of_dir_index dir_index in
+                  let pos = u.Unit.pos ++. vec_of_loc dloc in
+                  let dvel = 0.5 %%. vec_of_loc dloc in
+                  let vel = dvel ++. u.Unit.vel in
+                  let dmgmult = 2.0 *. eng in
+                  let drag = 4.0 in
+                  let mass = eng *. 0.5 in
+                  let eng_proj = Proj.({item={mass=mass; dmgmult; drag; tp=EngCharge}; pos; vel; }) in
+                  (conserve_momentum eng_proj (Unit.add_energy (-.cost) u), Simobj.add eng_proj reg)
+                else
+                  u, reg
+              )
+              else
+                u, reg
+            in
+
+            (* finalize *)
+            (u, upd_reg u {reg with R.e = ue'})
+          | Rest ->
+              let u' = Unit.heal (0.8*.dt) u in
+              (u', upd_reg u' reg)
+          | Prepare _ -> (u, reg)
+          | Stunned -> (u, reg)
+        in
+
+        (* update the actions list *)
+        let u =
+          if t_passed_upd <= t_end then
+            {u with Unit.ac = (Timed (hold_opt, t_passed_upd, t_end, ta)) :: tl }
+          else
+            let ac = 
+              let tl_ext = match ta with 
+                Prepare action -> action::tl
+              | _ -> tl in
+              (Wait (u.Unit.loc, 0.0)) :: tl_ext 
+            in
+            Unit.{u with ac}
+        in
+        (u, upd_reg u reg)
+
+  | _ -> (u, reg)
+
 (* helper function *)
 (* run simulation for a single unit, return reg and need_input *)
 let run_for_one dt u s (reg, astr, need_input) =
@@ -484,6 +531,7 @@ let run_for_one dt u s (reg, astr, need_input) =
   (* fire projectiles *)
   let reg, u' = actions_with_objects (reg, u') in
 
+  (*
   (* timed actions - affects other units, overshadows old ue and u' *)
   let (ue, u') = 
     match u'.Unit.ac with 
@@ -501,6 +549,9 @@ let run_for_one dt u s (reg, astr, need_input) =
         (E.upd u'' ue', u'')
     | _ -> (reg.R.e, u')
   in
+  *)
+  let u', reg = timed_better dt u' reg in
+  let ue = reg.R.e in
 
   let updateu u = {reg with R.e = E.upd u ue} in
   let removeu u = 

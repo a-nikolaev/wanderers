@@ -185,6 +185,20 @@ let auto_switch = function
 
 let get_tq name = tqs.(name)
 
+let dir_index_of_dloc = function
+  | (1,0) -> 0 
+  | (0,1) -> 1
+  | (-1,0) -> 2
+  | (0,-1) -> 3
+  | _ -> failwith "Fencing.dir_index_of_dloc"
+
+let dloc_of_dir_index = function
+  | 0 -> (1,0)
+  | 1 -> (0,1)
+  | 2 -> (-1,0) 
+  | 3 -> (0,-1) 
+  | _ -> failwith "Fencing.dloc_of_dir_index"
+
 (* 
    dt = simulation time interval,
    t = current time (with this current time step added already)

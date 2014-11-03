@@ -58,7 +58,12 @@ let upd_projectiles dt reg =
     ) ls2 in
   
   (* filter slow *)
-  let ls3 = List.filter (fun proj -> vec_len2 proj.Proj.vel > 0.5) ls3 in
+  let ls3 = 
+    List.filter (fun proj -> 
+      match proj.Proj.item.Proj.tp with
+      | Proj.EngCharge -> vec_len2 proj.Proj.vel > 0.1 && proj.Proj.item.Proj.dmgmult > 0.1 
+      | _ -> vec_len2 proj.Proj.vel > 0.5
+    ) ls3 in
 
   (* damage *)
   let ls4, ue =
