@@ -29,6 +29,8 @@ let constructors_dng =
     "data/dg/dng4.au";
     "data/dg/dng5.au";
     "data/dg/dng6.au";
+    "data/dg/dng7.au";
+    "data/dg/dng8.au";
   ] |> Array.of_list
 
 let constructors_cave = 
