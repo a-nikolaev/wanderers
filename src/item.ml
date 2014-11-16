@@ -160,8 +160,22 @@ module Cnt = struct
     let ls = [(0,Hand); (1,Body); (2,Hand); (3, Head); (4,Purse)] in
     let len = List.length ls in
     make (map_of_list ls) (Some len)
+  
+  let empty_only_money = 
+    let ls = [(0,Purse)] in
+    let len = List.length ls in
+    make (map_of_list ls) (Some len)
+  
+  let empty_only_money_plus = 
+    let ls = [(0,Purse); (1,General)] in
+    let len = List.length ls in
+    make (map_of_list ls) (Some len)
  
   let empty_unlimited = make M.empty None
+  
+  let empty_limited n = 
+    let ls = fold_lim (fun acc i -> (i, General)::acc) [] 0 (n-1) |> List.rev in
+    make (map_of_list ls) (Some n)
 
   let find_empty_slot pred c = 
     let rec search i =

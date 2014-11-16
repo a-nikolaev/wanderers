@@ -87,7 +87,16 @@ let make_fac_prop spec variant =
         traits = zero_traits; 
         
         htrm = mk_htrm (-10.) (-3.) 
-          RM.([(Plains, 1.); (Mnt, 1.); (SnowMnt, -4.); (ForestMnt,4.); (Forest,11.); (DeepForest,10.); (Swamp,-1.); (Dungeon, -2.); (Cave, -2.) ]);
+          RM.([(Plains, 1.); (Mnt, 2.); (SnowMnt, -4.); (ForestMnt,4.); (Forest,11.); (DeepForest,10.); (Swamp,-1.); (Dungeon, -2.); (Cave, -2.) ]);
+      }
+  | Swampy ->
+      { fsp = spec; cl = Wild;
+        speciesls = Species.([(Slime, 0);]);
+        vio_ok = 3; lawful = 1; selfesteem = 5;
+        traits = zero_traits; 
+        
+        htrm = mk_htrm (-10.) (-3.) 
+          RM.([(Plains, -1.); (Mnt, -5.); (SnowMnt, -10.); (ForestMnt,-5.); (Forest, 0.); (DeepForest, 1.); (Swamp, 25.); (Dungeon, 4.); (Cave, 16.) ]);
       }
 
 let make_variety n =
@@ -101,8 +110,10 @@ let make_variety n =
   (*
   let prop = Array.init n (fun _ -> make_fac_prop (sp())) in
   *)
-  let prop_ls = [(Humanoid, 0); (Domestic, 0); (Humanoid, 1); (Undead, 0); (Undead, 1); (Humanoid, 2); (Wildlife, 0); 
-    (Humanoid, 3); (Undead, 2); (Undead, 3); (Humanoid, 4)] in
+  let prop_ls = [
+    (Humanoid, 0); (Domestic, 0); (Humanoid, 1); (Undead, 0); (Undead, 1); 
+    (Humanoid, 2); (Wildlife, 0); (Humanoid, 3); (Undead, 2); (Undead, 3); 
+    (Humanoid, 4); (Swampy, 0)] in
   assert(List.length prop_ls >= n); 
   let prop = Array.of_list (List.map (fun (sp,var) -> make_fac_prop sp var) prop_ls) in
   
@@ -113,10 +124,12 @@ let make_variety n =
       let rl1, rl2, ra1, ra2 = match prop.(i).fsp, prop.(j).fsp with
         Humanoid, Humanoid -> let x = -5. (* + Random.int 8 *) +. Random.float 7. in (x, x, x, x) 
       | Humanoid, Domestic | Domestic, Humanoid -> (5., 5., 6.5, 6.5)
-      | Humanoid, Wildlife | Wildlife, Humanoid -> (-3., -3., -3., -3.) 
+      | Humanoid, Wildlife | Wildlife, Humanoid | Humanoid, Swampy | Swampy, Humanoid  -> (-3., -3., -3., -3.) 
       | Domestic, Domestic -> (6., 6., 3., 3.)
       | Domestic, Wildlife -> (-9.,  2., -1., -5.)
       | Wildlife, Domestic -> ( 2., -9., -5., -1.)
+      | Domestic, Swampy | Swampy, Domestic -> (-3., -3., -3., -3.)
+      
       | Wildlife, Wildlife -> (-1., -1., -1., -1.)
       
       | Undead, Undead -> let x = -3. +. Random.float 5. in (x, x, x, x)
@@ -126,6 +139,7 @@ let make_variety n =
       | Undead, Domestic -> (-9., -9., -4., -3.)
       
       | Undead, Wildlife | Wildlife, Undead -> (2., 2., 1., 1.)  
+      | Undead, Swampy | Swampy, Undead | Swampy, Wildlife | Wildlife, Swampy | Swampy, Swampy -> (2., 2., 1., 1.)  
       in
       if i = j then 
       ( rel_like.(i).(j) <- 5.;

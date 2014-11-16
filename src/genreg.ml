@@ -29,8 +29,11 @@ let constructors_dng =
     "data/dg/dng4.au";
     "data/dg/dng5.au";
     "data/dg/dng6.au";
-    "data/dg/dng7.au";
-    "data/dg/dng8.au";
+
+    (*
+    "data/dg/dng9.au";
+    "data/dg/dng10.au";
+    *)
   ] |> Array.of_list
 
 let constructors_cave = 
@@ -402,6 +405,10 @@ let gen pol edges_func rid rm astr =
         let sp = match any_from_ls pol.Pol.prop.(fac).Pol.speciesls with 
           | Some sp -> upgrade rm sp 
           | _ -> failwith "genreg: empty species list" in
+        
+        let u, _ = Unit.make_res mov_acc.Mov.res fac sp None loc in
+        (E.upd u e_acc, Mov.subtract_unit mov_acc u)  
+        (*
         if pol.Pol.prop.(fac).Pol.cl <> Pol.Wild then
         ( (* make a unit with items, use some resources *)
           let u, _ = Unit.make_res mov_acc.Mov.res fac sp None loc in
@@ -412,6 +419,7 @@ let gen pol edges_func rid rm astr =
           (* change its inventory to animal inventory *)
           let u = Unit.({u with core = {u.core with Core.inv = Inv.animal}}) in
           (E.upd u e_acc, mov_acc) ) 
+        *)
       )
       else
         (e_acc, mov_acc)

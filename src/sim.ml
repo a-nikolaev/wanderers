@@ -333,11 +333,20 @@ let intel geo reg pol ue u =
   let h dl = E.at (u.Unit.loc ++ dl) ue in
   let f dl = g (h dl) in
   if u.Unit.ac = [] then
+    (* try to attack a nearby enemy *)
     let enemies =
-      List.concat [ f(0,1); f(0,-1); f(1,0); f(-1,0) ] in
-    match any_from_ls enemies with
-      Some tu ->
-        let dir_index = Fencing.dir_index_of_dloc Unit.(tu.loc--u.loc) in
+      List.concat [ f(0,0); f(0,1); f(0,-1); f(1,0); f(-1,0) ] in
+    (* here, better test, whether the unit has an attack or not *)
+    match any_from_ls enemies, Unit.get_sp u with
+      Some tu, (Species.Slime, _) ->
+        {u with Unit.ac = [Lookaround 8]} 
+    | Some tu, _ ->
+        let dloc = 
+          match tu.Unit.loc -- u.Unit.loc with
+          | (0,0) -> loc_of_vec_away_from_zero (tu.Unit.pos --. u.Unit.pos) 
+          | x -> x
+        in
+        let dir_index = Fencing.dir_index_of_dloc dloc in
         let melee = Unit.get_melee u in
         let weapon_duration = melee.Item.Melee.duration in
         let tq = Fencing.get_tq u.Unit.fnctqn in
@@ -346,9 +355,10 @@ let intel geo reg pol ue u =
         {u with Unit.ac = [Timed (Some u.Unit.loc, 0.0, duration, timed_action)];
           Unit.fnctqn = Fencing.auto_switch u.Unit.fnctqn;
         }
-    | None ->
+    | None, _ ->
         {u with Unit.ac = [Lookaround 8] (* [Walk (Unit.make_path reg.R.a u)]; *)} 
   else 
+    (* otherwise try to do something smarter *)
     ( match u.Unit.ac with
       | (Lookaround dist) :: tl ->
           let u' = Vision.update_mob_sight reg dist u in
@@ -407,14 +417,14 @@ let intel geo reg pol ue u =
                         dloc_ls in
                       let pre_prob_sum = List.fold_left (+.) 0.0 pre_prob_ls in
                       
-                      (* actula probabilities list to choose the destination *)
+                      (* actual probabilities list to choose the destination *)
                       let prob_ls = List.map2 (fun dloc pre_prob -> (tloc ++ dloc, pre_prob /. pre_prob_sum)) dloc_ls pre_prob_ls in
 
                       let dest_loc = any_from_prob_ls prob_ls in
 
                       {u' with 
                         Unit.ac = [Walk (Unit.make_path_to reg.R.a u' dest_loc, 0.0)];
-                        Unit.tactmem = if (Random.int 3 = 0) then Unit.TactMem.empty else u'.Unit.tactmem }
+                        Unit.tactmem = if (Random.int 4 = 0) then Unit.TactMem.empty else u'.Unit.tactmem }
                     )
                   )
               )
@@ -522,6 +532,42 @@ let timed_better dt u reg =
 
   | _ -> (u, reg)
 
+
+(* slime attacks *)
+let static_abilities dt u reg =
+  let upd_reg u reg = {reg with R.e = E.upd u reg.R.e} in
+  match Unit.get_sp u with
+  | Species.Slime, _ ->
+    ( let g = List.filter (fun other_u -> 
+        (* match Decision.U.get_intention pol u other_u with Decision.Kill | Decision.Avoid -> true | _ -> false *)
+        ( match Unit.get_sp other_u with 
+          | Species.Slime, _
+          | Species.Skeleton, _
+          | Species.Zombie, _ 
+          | Species.SkeletonWar, _ 
+          | Species.ZombieHulk, _  -> false 
+          | _ -> true)
+        ) 
+      in
+      let ue = reg.R.e in
+      let h dl = E.at (u.Unit.loc ++ dl) ue in
+      let f dl = g (h dl) in
+      let enemies = List.concat [f(0,0);] in
+      match any_from_ls enemies with
+      | Some tu ->
+          let max_dist = Unit.get_radius tu +. Unit.get_radius u in
+          let dist = (tu.Unit.pos --. u.Unit.pos) |> vec_len in
+          let closeness = max 0.0 (max_dist -. dist) /. max_dist in
+          let strike = (* dp (change of the momentum with time dt) = F*dt = dvel*m *)
+            dt *. closeness  *. Unit.get_athletic u in
+          let melee = Unit.get_melee u in
+          let tu_upd = Unit.damage (strike, (0.0, 0.0), melee.Item.Melee.attrate) tu in
+          (u, upd_reg tu_upd reg) 
+      | _ -> (u, reg)
+    )
+  | _ -> (u, reg)
+
+
 (* helper function *)
 (* run simulation for a single unit, return reg and need_input *)
 let run_for_one dt u s (reg, astr, need_input) =
@@ -551,6 +597,8 @@ let run_for_one dt u s (reg, astr, need_input) =
   in
   *)
   let u', reg = timed_better dt u' reg in
+  let u', reg = static_abilities dt u' reg in
+  
   let ue = reg.R.e in
 
   let updateu u = {reg with R.e = E.upd u ue} in
@@ -560,7 +608,27 @@ let run_for_one dt u s (reg, astr, need_input) =
     Area.set reg.R.optinv u.Unit.loc optinv1;
     (* Warning! this resources that left over, are lost and possibly disapear *)
     (* let res = Inv.decompose invleftovers in *)
-    {reg with R.e = E.rm u ue} in
+    
+    (* split slimes *)
+    let add_sp_ls = 
+      Species.(
+      match Unit.get_sp u with
+      | Slime, 2 -> 
+          (if Random.int 10 = 0 then [Skeleton,1] else []) @ [Slime,1; Slime,1; Slime,1] 
+      | Slime, 1 -> [Slime,0; Slime,0; Slime,0; Slime,0] 
+      | Slime, 0 -> []
+      | _ -> []
+      )
+    in
+    let add_units_ls = List.map (fun sp -> 
+        let u = Unit.make (Unit.get_faction u) sp None u.Unit.loc in
+        let phi = Random.float (3.141592 *. 2.0) in
+        {u with Unit.vel = 5.0 %%. (cos phi, sin phi)}
+      ) add_sp_ls 
+    in
+    let ue1 = E.rm u ue in
+    let ue2 = List.fold_left (fun acc u -> E.upd u acc) ue1 add_units_ls in
+    {reg with R.e = ue2} in
 
   let rid = R.get_rid reg in
 

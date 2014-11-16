@@ -181,7 +181,7 @@ module Astr = struct
     let core_satisfies core =
       let gen, _ = Unit.Core.get_sp core in
       match gen with
-        Species.Cow | Species.Horse | Species.Wolf -> false
+        Species.Cow | Species.Horse | Species.Wolf | Species.Slime -> false
       | _ -> true
     in
 

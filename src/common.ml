@@ -122,13 +122,15 @@ and action =
   | OperateObj of (loc * op_obj_type)
 
 (* faction specialization *)
-type fac_spec = Humanoid | Domestic | Wildlife | Undead
+type fac_spec = Humanoid | Domestic | Wildlife | Undead | Swampy
 
 module Species = struct
-  type genus = Hum 
+  type genus = 
+    | Hum 
     | Cow | Horse
     | Skeleton | Zombie | SkeletonWar | ZombieHulk
     | Wolf | Bear | Troll
+    | Slime
 
   type t = genus * int
 
@@ -141,6 +143,7 @@ module Species = struct
     | ZombieHulk, _ -> 1.8
     | Wolf, _ -> 0.7
     | Troll, _ -> 1.2
+    | Slime, x -> add 0.5 0.2 x
     | _ -> 1.0
 
   let xmass = function
@@ -153,6 +156,7 @@ module Species = struct
     | Wolf, _ -> 0.8
     | Bear, _ -> 4.0
     | Troll, _ -> 1.8
+    | Slime, x -> add 0.8 0.4 x
     | _ -> 1.0
   
   let xathletic = function
@@ -164,6 +168,7 @@ module Species = struct
     | SkeletonWar, _ -> 1.5
     | Bear, _ -> 3.5
     | Troll, _ -> 2.2
+    | Slime, x -> add 1.2 0.4 x
     | _ -> 1.0
  
   let xmagic_aff = function
@@ -177,6 +182,10 @@ module Species = struct
     | SkeletonWar, _ -> 1.7
     | _ -> 1.0
 
+  let xradius = function
+    | Slime, _ -> 0.5
+    | _ -> 1.0
+
   let rec upgrade prob sp =
     let r() = Random.float 1.0 in
     let rec u = function
@@ -186,9 +195,16 @@ module Species = struct
       | Zombie, _ when r() < prob -> u (ZombieHulk, 0)
       | Wolf, x when r() < 2.0 *. prob -> u (Bear, x)
       | Bear, x when r() < 2.0 *. prob -> u (Troll, x)
+      | Slime, 0 when r() < prob -> u (Slime, 1)
+      | Slime, 1 when r() < prob -> u (Slime, 2)
       | sp -> sp 
     in
     u sp
+
+  let def_inv = function
+    | Hum, _ | Skeleton, _ | Zombie, _ | SkeletonWar, _ | ZombieHulk, _  -> Inv.default
+    | Cow, _ | Horse, _ | Wolf, _ | Bear, _ | Troll, _ -> Inv.animal
+    | Slime, _ -> Inv.slime
 end
 
 module Unit = struct
@@ -453,7 +469,7 @@ module Unit = struct
         mass = mass*.Species.xmass sp;
         magic_aff = magic_aff *. Species.xmagic_aff sp;
         max_eng = max_eng;
-        radius = comp_radius (mass *. Species.xmass sp);
+        radius = comp_radius (mass *. Species.xmass sp) *. Species.xradius sp;
         basedmg = basedmg *. Species.xbasedmg sp;
         courage = courage;
         } in
@@ -471,7 +487,7 @@ module Unit = struct
           hp = prop.mass;
           eng = 0.0;
           controller = controller;
-          inv = Inv.default;
+          inv = Species.def_inv sp;
           aux;
           gender;
           res = Resource.zero;
@@ -790,7 +806,7 @@ module E = struct
 end
 
 
-let default_factions_number = 11
+let default_factions_number = 12
 
 (* Movables, bulk counted movable goods and population *)
 module Mov = struct

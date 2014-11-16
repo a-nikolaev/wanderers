@@ -28,6 +28,16 @@ type vec = float * float
 let vec_of_loc (i,j) = (float i, float j)
 let loc_of_vec (x,y) = (int_of_float (floor (x+.0.5)), int_of_float (floor (y+.0.5)))
 
+let loc_of_vec_away_from_zero (x,y) =
+  let ij = loc_of_vec (x,y) in
+  match ij with
+  | (1,0) | (-1,0) | (0,1) | (0,-1) -> ij
+  | _ ->
+      if abs_float x > abs_float y then 
+        ( if x > 0.0 then (1, 0) else (-1, 0) )
+      else
+        ( if y > 0.0 then (0, 1) else (0, -1) )
+
 let vec_len2 (x,y) = x*.x +. y*.y
 let vec_len (x,y) = sqrt(x*.x +. y*.y)
 

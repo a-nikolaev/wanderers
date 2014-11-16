@@ -118,6 +118,9 @@ let default =
 let animal = 
   {cnt = M.empty; limit = 0}
 
+let slime = 
+  {cnt = map_of_list [(1, Cnt.empty_only_money)]; limit = 2}
+
 let ground =
   {cnt = map_of_list [(0, Cnt.empty_unlimited)]; limit = 1}
 

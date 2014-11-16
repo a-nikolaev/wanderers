@@ -262,7 +262,7 @@ let make_geo w h facnum =
       ( match cube.(i).(j).(k) with
         | None ->
           ( cube.(i).(j).(k) <- 
-              Some (if step > 10 then RM.Cave else RM.Dungeon); 
+              Some (if step > (* 10 *) 10 then RM.Cave else RM.Dungeon); 
             if Random.int 8 = 0 then worm (step+1) (rnd loc); 
             worm (step+1) (rnd loc) 
           )

@@ -67,6 +67,7 @@ let species_img = function
   | Species.SkeletonWar, _ -> Pos.u_mon ++ (2, 1) 
   | Species.Zombie, x -> Pos.u_mon ++ (0+x, 2) 
   | Species.ZombieHulk, _ -> Pos.u_mon ++ (2, 2) 
+  | Species.Slime, x -> Pos.u_mon ++ (0+x, 5)
 
 (* switch texture *)
 let switch_to_text () = 
@@ -966,6 +967,6 @@ let draw_state t s =
       draw_cursor 0 Draw.gr_ui (inv_coords ++ shift ++ (ii,0))
   | State.CtrlM.Normal | State.CtrlM.WaitInput _ -> ()
   | State.CtrlM.Died t ->
-      set_color 0.25 0.25 0.25 (min 1.0 (0.02 *. t));
+      set_color 0.35 0.35 0.35 (min 1.0 (0.02 *. t));
       Draw.put_string "press [Enter] to restart" Draw.gr_sml_ui (15, 32)
 
