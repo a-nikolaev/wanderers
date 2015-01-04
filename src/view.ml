@@ -294,7 +294,7 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
   (* mark cursor location *)
   ( match mvbl_region_loc with
     | Some _ -> 
-        set_color 0.7 0.9 0.4 1.0; 
+        set_color 0.9 1.0 0.2 1.0; 
         Draw.draw_sml_tile_wh 3 3 (Pos.atlas ++ (9,3)) gr (scrloc (cursor_loc -- (1,1))) 
     | None -> ()
   )
