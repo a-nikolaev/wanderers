@@ -28,7 +28,8 @@ module CtrlM = struct
     | Look of (Unit.t list)
     | Inventory of invprop 
     | WaitInput of (Unit.t list)
-    | OpenAtlas of openatlasprop * t    
+    | OpenAtlas of openatlasprop * t
+    | Console of Unit.t * t
     | Died of float
 end
 
@@ -79,7 +80,9 @@ type t =
 
     opts : Options.t;
 
-    debug : bool
+    debug : bool;
+
+    console : Console.t
   }
 
 let make w h debug = 
@@ -204,6 +207,7 @@ let make w h debug =
     clock_last_alive_check = Clock.zero;
     opts = Options.default;
     debug;
+    console = Console.make()
   }
 
 
@@ -266,11 +270,16 @@ module Msg = struct
     | UpStairs
     | DownStairs
     | Atlas
+    | Console
     | ScrollForward
     | ScrollBackward
 
     | OptsSpeedup
     | OptsSlowdown
+
+    | Char of char
+    | Backspace
+    | Delete
 end
 
 let respond s =
@@ -400,6 +409,7 @@ let respond s =
         | Msg.OptsSpeedup -> {s with opts = Options.speedup s.opts}
         | Msg.OptsSlowdown -> {s with opts = Options.slowdown s.opts}
         | Msg.Atlas -> {s with cm = CtrlM.OpenAtlas (s.atlas.Atlas.curloc, s.cm) }
+        | Msg.Console -> {s with cm = CtrlM.Console (u, s.cm)}
         | _ -> s
       )
 
@@ -517,6 +527,59 @@ let respond s =
         | Msg.UpStairs -> move (0,0,1)
         | Msg.DownStairs -> move (0,0,-1)
         | Msg.Cancel -> {s with cm = prev_cm}
+        | _ -> s
+      )
+  | CtrlM.Console (u, prev_cm) ->
+    
+      (* update units lists in CtrlM *)
+      let rec traverse e = 
+        let proc_one u = E.id (u.Unit.id) e in
+        let proc ls = List.fold_left (fun acc u -> (match proc_one u with Some uu -> uu::acc | _ -> acc)) [] ls |> List.rev in        
+        function
+          | CtrlM.WaitInput ls -> CtrlM.WaitInput (proc ls)
+          | CtrlM.Target ls -> CtrlM.Target (proc ls)
+          | CtrlM.Look ls -> CtrlM.Look (proc ls)
+          | CtrlM.OpenAtlas (rloc, cm) -> CtrlM.OpenAtlas (rloc, traverse e cm)
+          | cm -> cm
+      in
+
+      let meta_upd nue =
+        let s' = {s with geo = G.upd {reg with R.e=nue} s.geo} in
+        {s' with cm = traverse nue prev_cm}
+      in
+      let meta_upd_unit u = meta_upd (E.upd u reg.R.e) in
+      let with_console c = {s with console = c} in
+
+      ( function
+        | Msg.Confirm ->
+            let str, c = Console.enter s.console in
+            (* do some actions *)
+            let s =
+              ( match str with
+                | "heal" -> meta_upd_unit (Unit.heal 100.0 u) 
+                | "item" -> 
+                    let obj = Item.Coll.random None in
+                    let inv = Unit.get_inv u in
+                    let inv' = 
+                      match Unit.get_inv u |> Inv.put_somewhere obj with
+                      | Some inv' -> inv'
+                      | _ -> inv
+                    in 
+                    meta_upd_unit (Unit.upd_inv inv' u)
+                | _ -> {s with cm = prev_cm}
+              )
+            in
+            {s with console = c}
+
+        | Msg.Left -> with_console (Console.left s.console)
+        | Msg.Right -> with_console (Console.right s.console)
+        | Msg.Up -> with_console (Console.up s.console)
+        | Msg.Down -> with_console (Console.down s.console)
+        | Msg.Backspace -> with_console (Console.backspace s.console)
+        | Msg.Delete -> with_console (Console.delete s.console)
+        | Msg.Char ch -> with_console (Console.insert ch s.console)
+
+        | Msg.Cancel -> {s with console = Console.cancel s.console; cm = prev_cm}
         | _ -> s
       )
   | CtrlM.Died t -> 

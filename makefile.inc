@@ -42,7 +42,8 @@ SOURCES=$(WIN_SOURCE) $(SDL_SOURCE) $(GL_SOURCE) \
 	$(SRCDIR)/politics.ml \
 	$(SRCDIR)/top.ml \
 	$(SRCDIR)/simobj.ml \
-	$(SRCDIR)/state.ml \
+  $(SRCDIR)/console.ml \
+  $(SRCDIR)/state.ml \
 	$(SRCDIR)/sim.ml \
 	$(SRCDIR)/grafx.ml \
 	$(SRCDIR)/view.ml \

@@ -1015,6 +1015,18 @@ let draw_state t s =
   | State.CtrlM.Normal | State.CtrlM.WaitInput _ -> ()
   | State.CtrlM.OpenAtlas (rloc, _) ->
       draw_atlas s.State.atlas s.State.geo (Some rloc) 24 15 Draw.gr_big_atlas;
+  
+  | State.CtrlM.Console (u, _) ->
+      let c = s.State.console in
+      let str = Console.string_of_buf c in
+      let cursor = c.Console.cur in
+      let prompt = " > " in
+      let dx = String.length prompt in
+      set_color 1.0 0.0 0.0 1.0; 
+      Draw.draw_sml_tile (Pos.atlas) Draw.gr_console (dx + cursor, 0);
+      set_color 1.0 1.0 1.0 1.0; 
+      Draw.put_string prompt Draw.gr_console (0, 0); 
+      Draw.put_string str Draw.gr_console (dx, 0) 
 
   | State.CtrlM.Died t ->
       set_color 0.35 0.35 0.35 (min 1.0 (0.02 *. t));

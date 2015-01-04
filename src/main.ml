@@ -32,6 +32,62 @@ open Printf
 let finalize s =
   State.save_to_file s "game.save"
 
+let normal_keys_input ctrl k g s =
+  State.
+  ( if (k.unicode land 0xFF80) = 0 then
+    ( let x = k.unicode land 0x7F in
+      let v = if ctrl then x + 0x60 else x in
+      let ch = Char.chr v in
+      
+      match ch with 
+      | 'h' -> if ctrl then g (Msg.Attack 2) else g Msg.Left
+      | 'l' -> if ctrl then g (Msg.Attack 0) else g Msg.Right
+      | 'k' -> if ctrl then g (Msg.Attack 1) else g Msg.Up
+      | 'j' -> if ctrl then g (Msg.Attack 3) else g Msg.Down
+      | 'a' -> g (Msg.Attack 2)
+      | 'd' -> g (Msg.Attack 0)
+      | 'w' -> g (Msg.Attack 1) 
+      | 's' -> g (Msg.Attack 3)
+      | ' ' -> g Msg.Wait
+      | 't' -> g Msg.Rest
+      | 'i' -> g Msg.OpenInventory
+      | 'q' when ctrl-> State.Exit
+      | 'q' -> g Msg.Cancel
+      | '0' -> g (Msg.Num 0)
+      | '1' -> g (Msg.Num 1)
+      | '2' -> g (Msg.Num 2)
+      | 'f' -> g Msg.Fire
+      | 'v' -> g Msg.Look
+      | '<' -> g Msg.UpStairs
+      | '>' -> g Msg.DownStairs
+      | 'm' -> g Msg.Atlas
+      | '*' -> g Msg.Console
+      (*
+      | ',' -> g Msg.ScrollBackward
+      | '.' -> g Msg.ScrollForward
+      *)
+      | '+' -> g Msg.OptsSpeedup
+      | '-' -> g Msg.OptsSlowdown
+      | _ -> State.Play s
+    )
+    else
+      State.Play s
+  )
+
+let typing_keys_input ctrl k g s =
+  State.
+  ( if (k.unicode land 0xFF80) = 0 then
+    ( let x = k.unicode land 0x7F in
+      let v = if ctrl then x + 0x60 else x in
+      let ch = Char.chr v in
+      match ch with
+      | ' ' | '0'..'9' | 'a'..'z' | 'A'..'Z' -> g (Msg.Char ch)      
+      | _ -> State.Play s
+    )
+    else
+      State.Play s
+  )
+
 let process_key_pressed k = function
     State.Play s ->
       let g m = State.Play (State.respond s m) in
@@ -46,45 +102,13 @@ let process_key_pressed k = function
         | K_DOWN, PRESSED -> if ctrl then g (Msg.Attack 3) else g Msg.Down
         | K_ESCAPE, PRESSED -> g Msg.Cancel
         | K_RETURN, PRESSED -> g Msg.Confirm
-        | _, PRESSED -> 
-          ( if (k.unicode land 0xFF80) = 0 then
-            ( let x = k.unicode land 0x7F in
-              let v = if ctrl then x + 0x60 else x in
-              let ch = Char.chr v in
-              
-              match ch with 
-              | 'h' -> if ctrl then g (Msg.Attack 2) else g Msg.Left
-              | 'l' -> if ctrl then g (Msg.Attack 0) else g Msg.Right
-              | 'k' -> if ctrl then g (Msg.Attack 1) else g Msg.Up
-              | 'j' -> if ctrl then g (Msg.Attack 3) else g Msg.Down
-              | 'a' -> g (Msg.Attack 2)
-              | 'd' -> g (Msg.Attack 0)
-              | 'w' -> g (Msg.Attack 1) 
-              | 's' -> g (Msg.Attack 3)
-              | ' ' -> g Msg.Wait
-              | 't' -> g Msg.Rest
-              | 'i' -> g Msg.OpenInventory
-              | 'q' when ctrl-> State.Exit
-              | 'q' -> g Msg.Cancel
-              | '0' -> g (Msg.Num 0)
-              | '1' -> g (Msg.Num 1)
-              | '2' -> g (Msg.Num 2)
-              | 'f' -> g Msg.Fire
-              | 'v' -> g Msg.Look
-              | '<' -> g Msg.UpStairs
-              | '>' -> g Msg.DownStairs
-              | 'm' -> g Msg.Atlas
-              (*
-              | ',' -> g Msg.ScrollBackward
-              | '.' -> g Msg.ScrollForward
-              *)
-              | '+' -> g Msg.OptsSpeedup
-              | '-' -> g Msg.OptsSlowdown
-              | _ -> State.Play s
+        | K_BACKSPACE, PRESSED -> g Msg.Backspace
+        | K_DELETE, PRESSED -> g Msg.Delete
+        | _, PRESSED ->
+            ( match s.State.cm with
+              | State.CtrlM.Console _ -> typing_keys_input ctrl k g s
+              | _ -> normal_keys_input ctrl k g s
             )
-            else
-              State.Play s
-          )
         | _ -> State.Play s
       )
   | x -> x
