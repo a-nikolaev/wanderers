@@ -188,6 +188,8 @@ module Draw = struct
   let gr_sml_ui = Grid.make 0 0 7 7
   let gr_ui = Grid.make 0 0 14 14
   let gr_atlas = Grid.make (7*50) (7*5) 7 7
+  
+  let gr_big_atlas = Grid.make (7*0) (7*0) 7 7
 
   let draw_text tij gr ij = Predraw.subimagei zi tx_text tij (Grid.posi zi gr ij)
   let draw_tile tij gr ij = Predraw.subimagei zi tx_tile tij (Grid.posi zi gr ij)

@@ -73,6 +73,7 @@ let process_key_pressed k = function
               | 'v' -> g Msg.Look
               | '<' -> g Msg.UpStairs
               | '>' -> g Msg.DownStairs
+              | 'm' -> g Msg.Atlas
               (*
               | ',' -> g Msg.ScrollBackward
               | '.' -> g Msg.ScrollForward

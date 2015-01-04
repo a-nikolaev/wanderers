@@ -168,16 +168,17 @@ let output_object_desc obj ij =
   );
   Draw.put_string Unit.(Printf.sprintf "Mass: %.2g" mass) Draw.gr_sml_ui (ij ++ (0, -3))
 
-let draw_atlas atlas geo =
-  let cur_z, cur_loc = atlas.Atlas.curloc in
+let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
+  let cursor_z, ((cursor_x,cursor_y) as cursor_loc) =
+    match mvbl_region_loc with Some xy -> xy | _ -> atlas.Atlas.curloc 
+  in
+  let player_z, ((player_x,player_y) as player_loc) = atlas.Atlas.curloc in
 
-  let maxr = 5 in
-    
-  let scrloc loc = loc -- cur_loc ++ (0,0) ++ (maxr, maxr) in
+  let scrloc loc = loc -- cursor_loc ++ (0,0) ++ (maxr_x, maxr_y) in
 
   let draw_rmp alpha_bg alpha_marks rmp =
-    let z,loc = rmp.Atlas.rloc in
-    if z = cur_z && loc_infnorm (loc -- cur_loc) < maxr then
+    let z, ((x,y) as loc) = rmp.Atlas.rloc in
+    if z = cursor_z && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
     ( let img = 
         match rmp.Atlas.biome with
         | RM.Dungeon 
@@ -216,8 +217,9 @@ let draw_atlas atlas geo =
         | _ ->
             biome_img rmp.Atlas.biome 
       in
+
       set_color 1.0 1.0 1.0 alpha_bg; 
-      Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) ;
+      Draw.draw_sml_tile img gr (scrloc loc) ;
       List.iter 
         ( function
             Atlas.Occupied (fac, pop) ->
@@ -225,32 +227,77 @@ let draw_atlas atlas geo =
               let x = float pop *. 0.07 in
               set_color (x*. cr) (x*. cg) (x*. cb) alpha_marks; 
               let img = Pos.atlas ++ (3, 0) in
-              Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) 
+              Draw.draw_sml_tile img gr (scrloc loc) 
           | Atlas.StairsUp ->
               set_color 1.0 1.0 1.0 (0.5*.alpha_marks); 
               let img = Pos.atlas ++ (4, 0) in
-              Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) 
+              Draw.draw_sml_tile img gr (scrloc loc) 
           | Atlas.StairsDown ->
               set_color 1.0 1.0 1.0 (0.5*.alpha_marks); 
               let img = Pos.atlas ++ (5, 0) in
-              Draw.draw_sml_tile img Draw.gr_atlas (scrloc loc) 
+              Draw.draw_sml_tile img gr (scrloc loc) 
         )
         rmp.Atlas.markls;
     )
   in
+  
+  (* background *)
+  let iter f =
+    Array.iter ( function 
+      | Some rmp ->
+          let z, ((x,y) as loc) = rmp.Atlas.rloc in
+          if z = cursor_z && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then f loc
+      | _ -> ()
+    ) atlas.Atlas.rmp;
+  in
 
+  if cursor_z == 0 then
+    set_color 0.5 0.5 0.5 1.0
+  else
+    set_color 0.1 0.1 0.1 1.0;
+
+  iter ( fun loc ->
+      let dx, dy = loc -- cursor_loc in
+      let right = dx < maxr_x-1 in
+      let left = dx > -maxr_x+1 in
+      let top = dy < maxr_y-1 in
+      let bottom = dy > -maxr_y+1 in
+
+      let chi = function true -> 1 | false -> 0 in
+      let w = 1 + chi left + chi right in
+      let h = 1 + chi bottom + chi top in
+      let shiftx = - chi left in (* -1 usually *)
+      let shifty = - chi bottom in (* -1 usually *)
+
+      Draw.draw_sml_tile_wh w h (Pos.atlas ++ (12+1+shiftx, 3 + 2 - (h + shifty))) gr (scrloc loc ++ (shiftx,shifty)) 
+  );
+  
+  set_color 0.1 0.1 0.1 1.0;
+  iter ( fun loc -> Draw.draw_sml_tile (Pos.atlas) gr (scrloc loc) );
+
+  (* shadowed *)
   Array.iter ( function 
     | Some rmp ->
         draw_rmp 0.5 0.8 rmp
     | _ -> ()
   ) atlas.Atlas.rmp;
 
+  (* currently visible *)
   Atlas.iter_visible (fun rmp -> draw_rmp 1.0 1.0 rmp) atlas;
-
-  (* mark current location *)
-  set_color 0.9 1.0 0.2 1.0; 
-  Draw.draw_sml_tile_wh 3 3 (Pos.atlas ++ (6,3)) Draw.gr_atlas (scrloc (cur_loc -- (1,1))) 
-
+  
+  (* mark player location *)
+  if player_z = cursor_z && abs (player_x-cursor_x) < maxr_x && abs (player_y-cursor_y) < maxr_y then 
+  ( set_color 0.9 1.0 0.2 1.0; 
+    Draw.draw_sml_tile_wh 3 3 (Pos.atlas ++ (6,3)) gr (scrloc (player_loc -- (1,1))) 
+  );
+  
+  (* mark cursor location *)
+  ( match mvbl_region_loc with
+    | Some _ -> 
+        set_color 0.7 0.9 0.4 1.0; 
+        Draw.draw_sml_tile_wh 3 3 (Pos.atlas ++ (9,3)) gr (scrloc (cursor_loc -- (1,1))) 
+    | None -> ()
+  )
   
 
 let i_see_all = false
@@ -860,7 +907,7 @@ let draw_state t s =
   Draw.put_string Unit.(Printf.sprintf "h: %i" (s.State.geo.G.loc.(R.get_rid reg) |> fst )) Draw.gr_sml_ui (50,0); 
 
   (* atlas *)
-  draw_atlas s.State.atlas s.State.geo;
+  draw_atlas s.State.atlas s.State.geo None 5 5 Draw.gr_atlas;
 
   if s.State.debug && false then
   ( (* factions images *)
@@ -966,6 +1013,9 @@ let draw_state t s =
       let shift = match invclass with State.CtrlM.InvGround -> shift_ground_inv | _ -> shift_unit_inv ic in
       draw_cursor 0 Draw.gr_ui (inv_coords ++ shift ++ (ii,0))
   | State.CtrlM.Normal | State.CtrlM.WaitInput _ -> ()
+  | State.CtrlM.OpenAtlas (rloc, _) ->
+      draw_atlas s.State.atlas s.State.geo (Some rloc) 24 15 Draw.gr_big_atlas;
+
   | State.CtrlM.Died t ->
       set_color 0.35 0.35 0.35 (min 1.0 (0.02 *. t));
       Draw.put_string "press [Enter] to restart" Draw.gr_sml_ui (15, 32)

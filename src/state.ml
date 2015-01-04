@@ -21,13 +21,14 @@ open Global
 module CtrlM = struct
   type invclass = InvGround | InvUnit 
   type invprop = invclass*int*int*Unit.t*(Unit.t list)
+  type openatlasprop = region_loc
   type t = 
     | Normal 
     | Target of (Unit.t list)
     | Look of (Unit.t list)
     | Inventory of invprop 
     | WaitInput of (Unit.t list)
-    
+    | OpenAtlas of openatlasprop * t    
     | Died of float
 end
 
@@ -264,6 +265,7 @@ module Msg = struct
     | Look
     | UpStairs
     | DownStairs
+    | Atlas
     | ScrollForward
     | ScrollBackward
 
@@ -397,6 +399,7 @@ let respond s =
               Unit.fnctqn = Fencing.scroll_backward (Unit.get_fnctqn u)}
         | Msg.OptsSpeedup -> {s with opts = Options.speedup s.opts}
         | Msg.OptsSlowdown -> {s with opts = Options.slowdown s.opts}
+        | Msg.Atlas -> {s with cm = CtrlM.OpenAtlas (s.atlas.Atlas.curloc, s.cm) }
         | _ -> s
       )
 
@@ -496,6 +499,24 @@ let respond s =
             let inv_upd = Inv.compact_simple (Unit.get_inv u) in
             let u_upd = Unit.upd_inv inv_upd u in
             upd_one (E.upd {u_upd with Unit.ac = [Wait (u.Unit.loc, 0.0)]} reg.R.e) 
+        | _ -> s
+      )
+  | CtrlM.OpenAtlas ((z,(x,y)) as rloc, prev_cm) ->
+      let move (dx,dy,dz) = 
+        let rloc1 = (z+dz, (x+dx, y+dy)) in
+        match Atlas.visible_rid_of_rloc s.atlas rloc1 with
+        | Some rid ->
+            {s with cm = CtrlM.OpenAtlas (rloc1, prev_cm)} 
+        | None -> s
+      in
+      ( function
+          Msg.Left -> move (-1,0,0)
+        | Msg.Right -> move (1,0,0) 
+        | Msg.Up -> move (0,1,0)
+        | Msg.Down -> move (0,-1,0)
+        | Msg.UpStairs -> move (0,0,1)
+        | Msg.DownStairs -> move (0,0,-1)
+        | Msg.Cancel -> {s with cm = prev_cm}
         | _ -> s
       )
   | CtrlM.Died t -> 

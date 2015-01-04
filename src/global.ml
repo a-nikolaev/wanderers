@@ -124,6 +124,11 @@ module Atlas = struct
     currid : region_id;
     curloc : region_loc
   }
+  
+  let visible_rid_of_rloc atlas rloc =
+    Array.fold_left (fun opt opt_rmp -> 
+      ( match opt_rmp with Some rmp when rmp.rloc = rloc -> Some rmp.rid | _ -> opt )
+    ) None atlas.rmp
 
   let iter_visible f atlas = 
     Mrid.iter (fun rid _ ->
