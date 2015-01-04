@@ -566,6 +566,14 @@ let respond s =
                       | _ -> inv
                     in 
                     meta_upd_unit (Unit.upd_inv inv' u)
+                | "blink" ->
+                    ( match find_walkable_location_reg reg with
+                      | loc -> 
+                          let ns = meta_upd_unit Unit.({u with loc = loc; pos = vec_of_loc loc}) in
+                          Vision.update_sight (Some ns.controller_id) (G.curr ns.geo) ns.vision;
+                          ns
+                      | _ -> {s with cm = prev_cm}
+                    )
                 | _ -> {s with cm = prev_cm}
               )
             in
