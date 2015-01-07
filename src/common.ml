@@ -836,12 +836,14 @@ type region_loc = (int*loc)
 module RM = struct
   type biome = Sea | SandyShore | Plains | Mnt | SnowMnt | ForestMnt | Forest | DeepForest | Swamp | Dungeon | Cave | Tomb
   type modifier = {urban:bool; cursed:bool}
-  type constype = CHouse | CFarm | CMarket of Item.Cnt.t | CFactory | CCityHall
+  type constype = CHouse | CFarm | CMarket | CFactory | CCityHall
   type construction = {constype: constype; consloc:loc}
 
   type t = {seed:int; biome:biome; modifier:modifier; altitude:int; lat:Mov.t; alloc:Mov.t; cons: construction list;
     difficulty: float
   }
+  
+  let has_market rm = List.exists (fun c -> c.constype = CMarket) rm.cons 
 
   let get_difficulty rm = rm.difficulty 
 end
@@ -891,6 +893,16 @@ module R = struct
     let empty w h = {projls=[]; stairsls = []; posobj = Area.make w h None; movls = []; energyspots = []}
   end
 
+  module Zone = struct
+    type label = Cons of RM.constype
+    module S = Set.Make (struct type t = label let compare = compare end)
+    type t = S.t Area.t
+    let mark z ij lbl = Area.set z ij (Area.get z ij |> S.add lbl)
+    let unmark z ij lbl = Area.set z ij (Area.get z ij |> S.remove lbl)
+    let get z ij = Area.get z ij
+    let check z ij v = Area.get z ij |> S.mem v
+  end
+
   type t = {
     rid: region_id; 
     a: Tile.t Area.t;
@@ -898,7 +910,12 @@ module R = struct
     e: E.t; 
     explored: (Tile.t option) Area.t; 
     optinv: (Inv.t option) Area.t;
+    zones: Zone.t;
     obj: Obj.t;}
+
+  let zone_mark r ij zlbl = Zone.mark r.zones ij zlbl
+  let zone_unmark r ij zlbl = Zone.unmark r.zones ij zlbl
+  let zone_check r ij zlbl = Zone.check r.zones ij zlbl
 
   (* decompose region (only non-player units if b=true) *)
   let decompose_nonplayer_only b reg = 
@@ -954,6 +971,18 @@ let find_walkable_location_a_e a e =
 
 let find_walkable_location_reg reg =
   find_walkable_location_a_e reg.R.a reg.R.e
+
+(* try pick one particular zone type *)
+let find_walkable_location_zone_a_e_z zone a e z =
+  find_location a 
+    ( fun n loc -> 
+        let c1 = Tile.can_walk (Tile.classify (Area.get a loc)) in
+        let c2 = not (E.occupied loc e) in
+        let c22 = R.Zone.check z loc zone in
+        c1 && (n > 50 || (c2 && c22)) )
+
+let find_walkable_location_zone_reg zone reg =
+  find_walkable_location_zone_a_e_z zone reg.R.a reg.R.e reg.R.zones
 
 let find_placement_location area obj =
   find_location 

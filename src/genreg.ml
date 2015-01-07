@@ -179,7 +179,7 @@ let build_dungeon cons charmap none_tile w h wtogen htogen =
       (a, (x0,y0))
   | None -> Area.make w h none_tile, (0,0)
 
-let add_house a ground_tile (start_x, start_y) wtogen htogen =
+let add_house a zones ground_tile (start_x, start_y) wtogen htogen =
   let (info,_) as cons = constructors_house.(0) in
 
   let rec attempt () =
@@ -219,7 +219,12 @@ let add_house a ground_tile (start_x, start_y) wtogen htogen =
           for i = 0 to  wtogen-1 do
             for j = 0 to htogen-1 do
               match Carve.block_get block (i+dii,j+djj) with
-                Some c -> Area.set a (start_x+i, start_y+j) (charmap_std c)
+                Some c -> 
+                  let t = charmap_std c in
+                  let ij = (start_x+i, start_y+j) in
+                  if Tile.classify t <> Tile.CWall then R.Zone.mark zones ij (R.Zone.Cons RM.CHouse);
+                  Area.set a ij t
+
               | None -> ()
             done
           done;
@@ -227,6 +232,28 @@ let add_house a ground_tile (start_x, start_y) wtogen htogen =
     | None -> ()
   in
   attempt()
+
+let add_market a zones ground_tile (start_x, start_y) wtogen htogen =
+  let sq (x,y) (dx, dy) =
+    for i = x to x + dx do
+      for j = y to y + dy do
+        if (i=x || i=x+dx) && (j = y || j =y+dy) then
+          Area.set a (i,j) Tile.Wall
+        else
+        ( R.Zone.mark zones (i,j) (R.Zone.Cons RM.CMarket);
+          Area.set a (i,j) Tile.WoodenFloor
+        )
+      done
+    done;
+    (*
+    let op_door = Tile.Door Tile.IsOpen in
+    Area.set a (x,y+dy/2) op_door;
+    Area.set a (x+dx,y+dy/2) op_door;
+    Area.set a (x+dx/2,y) op_door;
+    Area.set a (x+dx/2,y+dy) op_door;
+    *)
+  in
+  sq (start_x, start_y) (wtogen-1, htogen-1)
 
 let gen pol edges_func rid rm astr =
 
@@ -279,7 +306,9 @@ let gen pol edges_func rid rm astr =
 
   (* add constructions *)
   (* add_cons area rm; *)
-  let _ =
+  let zones =
+    let zones = Area.make (Area.w area) (Area.h area) R.Zone.S.empty in
+
     let midgapx = 3 in 
     let midgapy = 2 in 
     let housew = (Area.w area - 2 - midgapx)/2 in
@@ -290,8 +319,12 @@ let gen pol edges_func rid rm astr =
       a
     in
     List.iteri (fun i {RM.constype=ct; RM.consloc=loc} ->
-      add_house area ground_tile permutations.(i) housew househ 
-    ) rm.RM.cons
+      match ct with
+      | RM.CMarket -> add_market area zones ground_tile permutations.(i) housew househ 
+      | _ -> add_house area zones ground_tile permutations.(i) housew househ 
+    ) rm.RM.cons;
+
+    zones
   in
 
   (* add N, S, W, E exits *)
@@ -383,7 +416,12 @@ let gen pol edges_func rid rm astr =
   let ue_actors_added =
     Org.Astr.fold_at rid 
       ( fun e_acc a ->
-          let loc = find_walkable_location_a_e area e_acc in
+          let loc = 
+            match Org.Actor.get_wcl a with
+            | Org.Actor.WC_Merchant when RM.has_market rm -> 
+                find_walkable_location_zone_a_e_z (R.Zone.Cons RM.CMarket) area e_acc zones
+            | _ -> find_walkable_location_a_e area e_acc 
+          in
           if Tile.can_walk (Tile.classify (Area.get area loc)) then
           ( let u = Org.Actor.make_unit a loc in
             E.upd u e_acc 
@@ -465,6 +503,6 @@ let gen pol edges_func rid rm astr =
 
   let rm' = RM.({rm with alloc = Mov.add rm.alloc just_allocated; lat = lat_mov_left_2}) in
 
-  ({rid=rid; a=area; e=ue; explored; optinv; obj; loc0}, rm')
+  ({rid=rid; a=area; e=ue; explored; optinv; zones; obj; loc0}, rm')
 
 (* generation gunction ends *)

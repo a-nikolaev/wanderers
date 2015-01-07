@@ -96,7 +96,8 @@ let unit_transfer u reg pol b_move_currid (g, astr) =
                     match find_entry_loc u.Unit.loc edge reg nreg nreg.R.obj with
                       Some loc -> loc 
                     | None -> find_walkable_location_reg nreg in
-                  let u2 = {u1 with Unit.loc = new_loc; Unit.pos = vec_of_loc new_loc; ac=[Wait (new_loc, 0.0)]} in
+                  let pos = vec_of_loc new_loc ++. ((0.0, 0.0) --. (u1.Unit.pos --. vec_of_loc u1.Unit.loc)) in
+                  let u2 = {u1 with Unit.loc = new_loc; Unit.pos = pos; ac=[Wait (new_loc, 0.0)]} in
                   (* transfer to the new reg *)
                   let g1 = 
                     g |> upd {reg with R.e = E.rm u reg.R.e}

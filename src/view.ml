@@ -228,6 +228,10 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
               set_color (x*. cr) (x*. cg) (x*. cb) alpha_marks; 
               let img = Pos.atlas ++ (3, 0) in
               Draw.draw_sml_tile img gr (scrloc loc) 
+          | Atlas.Market ->
+              set_color 1.0 1.0 1.0 (0.5*.alpha_marks); 
+              let img = Pos.atlas ++ (6, 0) in
+              Draw.draw_sml_tile img gr (scrloc loc) 
           | Atlas.StairsUp ->
               set_color 1.0 1.0 1.0 (0.5*.alpha_marks); 
               let img = Pos.atlas ++ (4, 0) in
@@ -648,8 +652,15 @@ let draw_unit t s reg eval_unit_strength u_controlled_strength u =
     
       (* actors badge *)
       ( match u.Unit.optaid with 
-          Some _ ->
-            Draw.draw_tile_vec (Pos.ui_dyn ++ (0, 1)) Draw.gr_map (u.Unit.pos); 
+          Some aid ->
+            let badge = 
+              ( match Org.Astr.get aid s.State.astr with
+                | Some a -> 
+                    if Org.Actor.get_wcl a = Org.Actor.WC_Merchant then 1 else 0
+                | _ -> 2
+              )
+            in
+            Draw.draw_tile_vec (Pos.ui_dyn ++ (0 + badge, 1)) Draw.gr_map (u.Unit.pos); 
         | _ -> ()
       );
 

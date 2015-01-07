@@ -32,6 +32,7 @@ SOURCES=$(WIN_SOURCE) $(SDL_SOURCE) $(GL_SOURCE) \
   $(SRCDIR)/common.ml \
   $(SRCDIR)/global.ml \
   $(SRCDIR)/org.ml \
+  $(SRCDIR)/trade.ml \
   $(SRCDIR)/simorg.ml \
   $(SRCDIR)/carvebase.ml \
   $(SRCDIR)/carve.ml \

@@ -66,6 +66,11 @@ module Actor = struct
   type cl = 
     Merchant of Item.Cnt.t | Craftsman | Defender | Adventurer | Prophet
 
+  type wcl = WC_Adventurer | WC_Merchant
+  let wcl_of_cl = function 
+    | Merchant _ -> WC_Merchant 
+    | _ -> WC_Adventurer 
+
   type id = int  
   (* notable / actor units *)
   type t = {aid: id; core: Unit.Core.t; rid: region_id; cl: cl;}
@@ -91,6 +96,7 @@ module Actor = struct
   let get_rid a = a.rid
   let get_aid a = a.aid
   let get_core a = a.core
+  let get_wcl a = a.cl |> wcl_of_cl
 
   let make_unit a loc = 
     let u = Unit.make_core (get_core a) None loc in
@@ -101,16 +107,27 @@ module Ma = Map.Make(struct type t = Actor.id let compare = compare end)
 module Sa = Set.Make(struct type t = Actor.id let compare = compare end)
 
 module Astr = struct
+  module Mwcl = Map.Make(struct type t = Actor.wcl let compare = compare end)
+  type stats = {mwcl: int Mwcl.t}
+  let stats_empty = {mwcl = Mwcl.empty}
+  let stats_inc wcl s = let v = try Mwcl.find wcl s.mwcl with Not_found -> 0 in {mwcl = Mwcl.add wcl (v+1) s.mwcl}
+  let stats_dec wcl s = let v = try Mwcl.find wcl s.mwcl with Not_found -> 0 in {mwcl = Mwcl.add wcl (max (v-1) 0) s.mwcl}
+  let stats_get wcl s = try Mwcl.find wcl s.mwcl with Not_found -> 0 
+  
   (* 
    ma is the map aid -> actor
    regsa.(rid) is the set of aid at the region 
   *)
-  type t = { ma : Actor.t Ma.t; regsa : Sa.t array; counter: Bwc.t }
+  type t = { ma : Actor.t Ma.t; regsa : Sa.t array; counter: Bwc.t; stats: stats }
 
-  let make_empty regnum = {ma = Ma.empty; regsa = Array.make regnum Sa.empty; counter = Bwc.make regnum}
+  let make_empty regnum = {ma = Ma.empty; regsa = Array.make regnum Sa.empty; counter = Bwc.make regnum; stats = stats_empty}
 
   let get aid astr = if Ma.mem aid astr.ma then Some (Ma.find aid astr.ma) else None
 
+  let get_from_unit u astr = 
+    match Unit.get_optaid u with
+    | Some aid -> get aid astr
+    | None -> None
 
   let counter_dval = 1.0
 
@@ -118,6 +135,8 @@ module Astr = struct
     match get a.Actor.aid astr with
       Some aold ->
         let ma = Ma.add a.Actor.aid a astr.ma in
+        let stats = astr.stats |> stats_dec (Actor.get_wcl aold) |> stats_inc (Actor.get_wcl a) in
+
         (* update region's aid sets *)
         let counter' =
           if a.Actor.rid <> aold.Actor.rid then
@@ -134,24 +153,27 @@ module Astr = struct
           else
             astr.counter
         in
-        {astr with ma; counter = counter'}
+        {astr with ma; counter = counter'; stats}
     | None ->
         let ma = Ma.add a.Actor.aid a astr.ma in
+        let stats = astr.stats |> stats_inc (Actor.get_wcl a) in
+        
         let sanew' = Sa.add a.Actor.aid astr.regsa.(a.Actor.rid) in
         astr.regsa.(a.Actor.rid) <- sanew';
         let counter' =
           astr.counter 
           |> Bwc.add a.Actor.rid (counter_dval) in
-        {astr with ma; counter = counter'}
+        {astr with ma; counter = counter'; stats}
 
   let remove a astr =
     let sa' = Sa.remove a.Actor.aid astr.regsa.(a.Actor.rid) in
     astr.regsa.(a.Actor.rid) <- sa';
     let ma = Ma.remove a.Actor.aid astr.ma in
+    let stats = astr.stats |> stats_dec (Actor.get_wcl a) in
     let counter' = 
       astr.counter 
       |> Bwc.add a.Actor.rid (-.counter_dval) in
-    {astr with ma; counter = counter'}
+    {astr with ma; counter = counter'; stats}
 
   let get_actors_num astr = Ma.cardinal astr.ma
 
@@ -199,7 +221,18 @@ module Astr = struct
           | Some (core, lat_res_left) when core_satisfies core ->
               rset_lat g rid lat_res_left;
 
-              let a = Actor.make_from_core rid core Actor.Adventurer in
+              let cl = 
+                let adv = stats_get Actor.WC_Adventurer astr.stats in
+                let merch = stats_get Actor.WC_Merchant astr.stats in
+                if adv < 2 * merch then Actor.Adventurer 
+                else
+                  ( match Random.int 2 with
+                    | 0 -> Actor.Adventurer
+                    | _ -> Actor.Merchant (Item.Cnt.empty_unlimited)
+                  )
+              in
+
+              let a = Actor.make_from_core rid core cl in
               let faction = Unit.Core.get_faction core in
               let pop_lat = fget_lat g rid faction in
               fset_lat g rid faction (max 0 (pop_lat-1));
@@ -317,3 +350,57 @@ let fake_fight core1 core2 =
   let (_, _, _, cc) = next (Random.float 4.0 +. 4.0, t10, t20, (core1, core2)) in
   cc
 
+
+(* Trying items *)
+
+let alternative_cores core bunch =
+  let inv = core.Unit.Core.inv in
+  let def_ci = 0 in
+
+  let mk c = 
+    Unit.Core.adjust_aux_info
+    {core with Unit.Core.inv = Inv.({inv with cnt = Item.M.add def_ci c inv.cnt})} in
+
+  match Inv.container def_ci inv with
+  | Some cnt ->
+      let initial_ls = 
+        match Item.Cnt.put_bunch bunch cnt with
+        | Item.Cnt.MoveBunchSuccess cnt -> [(mk cnt, [])]
+        | Item.Cnt.MoveBunchPartial (b,cnt) -> [(mk cnt, [b])]
+        | _ -> [] in
+
+      (* remove one item, put the given item instead *)
+      let alt_cores_ls =
+        Item.Cnt.fold (fun acc si _ ->
+          match Item.Cnt.get_bunch si cnt with
+            Some (removed_bunch, cnt') -> 
+              ( match Item.Cnt.put_bunch bunch cnt' with
+                | Item.Cnt.MoveBunchSuccess cnt'' -> (mk cnt'', [removed_bunch]) :: acc
+                | Item.Cnt.MoveBunchPartial (bunch_left, cnt'') -> (mk cnt'', bunch_left::[removed_bunch]) :: acc
+                | _ -> acc
+              )
+          | None -> acc
+        ) initial_ls cnt.Item.Cnt.bunch in
+      alt_cores_ls
+  | None ->
+      []
+
+let eval_quick c1 c2 = 
+  let str1 = Unit.Core.approx_strength c1 in
+  let str2 = Unit.Core.approx_strength c2 in
+  str1 > str2
+
+let eval_slow c1 c2 =
+  let uc1, uc2 = fake_fight c1 c2 in
+  Unit.Core.get_hp uc1 > Unit.Core.get_hp uc2 
+
+(* try to put on the given item
+ *
+ * returns a tuple (best core, list of the bunches to drop)  *)
+let try_bunch_eval eval_better core bunch =
+  let alt_ls = alternative_cores core bunch in
+  List.fold_left 
+    (fun (bc, bls) (c,ls) -> 
+      if eval_better c bc then (c,ls) else (bc,bls)
+    ) 
+    (core, [ bunch ] ) alt_ls

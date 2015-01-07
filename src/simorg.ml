@@ -20,58 +20,6 @@ open Common
 open Org
 open Global
 
-let alternative_cores core bunch =
-  let inv = core.Unit.Core.inv in
-  let def_ci = 0 in
-
-  let mk c = 
-    Unit.Core.adjust_aux_info
-    {core with Unit.Core.inv = Inv.({inv with cnt = Item.M.add def_ci c inv.cnt})} in
-
-  match Inv.container def_ci inv with
-  | Some cnt ->
-      let initial_ls = 
-        match Item.Cnt.put_bunch bunch cnt with
-        | Item.Cnt.MoveBunchSuccess cnt -> [(mk cnt, [])]
-        | Item.Cnt.MoveBunchPartial (b,cnt) -> [(mk cnt, [b])]
-        | _ -> [] in
-
-      (* remove one item, put the given item instead *)
-      let alt_cores_ls =
-        Item.Cnt.fold (fun acc si _ ->
-          match Item.Cnt.get_bunch si cnt with
-            Some (removed_bunch, cnt') -> 
-              ( match Item.Cnt.put_bunch bunch cnt' with
-                | Item.Cnt.MoveBunchSuccess cnt'' -> (mk cnt'', [removed_bunch]) :: acc
-                | Item.Cnt.MoveBunchPartial (bunch_left, cnt'') -> (mk cnt'', bunch_left::[removed_bunch]) :: acc
-                | _ -> acc
-              )
-          | None -> acc
-        ) initial_ls cnt.Item.Cnt.bunch in
-      alt_cores_ls
-  | None ->
-      []
-
-let eval_quick c1 c2 = 
-  let str1 = Unit.Core.approx_strength c1 in
-  let str2 = Unit.Core.approx_strength c2 in
-  str1 > str2
-
-let eval_slow c1 c2 =
-  let uc1, uc2 = fake_fight c1 c2 in
-  Unit.Core.get_hp uc1 > Unit.Core.get_hp uc2 
-
-(* try to put on the given item
- *
- * returns a tuple (best core, list of the bunches to drop)  *)
-let try_bunch_eval eval_better core bunch =
-  let alt_ls = alternative_cores core bunch in
-  List.fold_left 
-    (fun (bc, bls) (c,ls) -> 
-      if eval_better c bc then (c,ls) else (bc,bls)
-    ) 
-    (core, [ bunch ] ) alt_ls
-
 let compute_core_value core = 
   let v = core |> Unit.Core.decompose |> Resource.numeric |> float in 
   let fm = Unit.Core.get_fm core in
@@ -206,6 +154,7 @@ let transfer_actor a nrid (g, astr) =
   | None ->
       (g, Astr.move_actor a nrid astr)
 
+
 (* Scenario - meet a local inhabbitant *)
 let scenario_meet_a_local pol a opp_core (g,astr) =
   let rid = Actor.get_rid a in
@@ -337,6 +286,53 @@ let sim_adventurer pol a (g, astr) =
     )
   | None -> (g, astr)
 
+(* Merchant simulation function *)
+let sim_merchant pol a (g, astr) =
+  match sample_encounter a (g,astr) (1.0, 1.0, 1.0, 5.0) with
+  | Some x ->
+    let rid = Actor.get_rid a in
+    let rm = g.G.rm.(rid) in
+    ( match x with
+      | Enc_Local ->
+          (* encounter a local inhabitant *)
+          ( match get_random_unit_core pol rm with
+            | Some (opp_core, _) ->
+                scenario_meet_a_local pol a opp_core (g,astr)
+            | None -> (g, astr)
+          )
+      | Enc_Actor ->
+          (* encounter an actor (active NPC) *)
+          ( match Astr.get_random_from rid astr with
+            | Some opp_actor when Actor.get_aid opp_actor <> Actor.get_aid a ->
+                scenario_meet_an_actor pol a opp_actor (g,astr)
+            | _ -> (g, astr) 
+          )
+      | Enc_Exit ->
+          (* found an exit *)
+          let rid_has_market rid = RM.has_market g.G.rm.(rid) in
+
+          if rid_has_market rid then
+            (* there is a market - stay *)
+            (g, astr)
+          else
+            (* no market - leave *)
+            let nb_rid_ls = G.get_only_nb_rid_ls rid g in
+            let nb_rid_ls =
+              match List.filter rid_has_market nb_rid_ls with
+              | [] -> nb_rid_ls
+              | ls -> ls
+            in
+            ( match any_from_ls nb_rid_ls with
+              | Some nb_rid ->
+                  (g, astr) |> transfer_actor a nb_rid 
+              | None ->
+                  (g, astr)
+            )
+      | Enc_Nothing ->
+          (g, astr)
+    )
+  | None -> (g, astr)
+
 let heal a =
   Actor.update_core a (Unit.Core.heal 20.0 (Actor.get_core a))
 
@@ -344,7 +340,8 @@ let heal a =
 let sim_one pol a ga =
   let a = heal a in
   match a.Actor.cl with
-    _ -> sim_adventurer pol a ga
+  | Actor.Merchant _ -> sim_merchant pol a ga
+  | _ -> sim_adventurer pol a ga
 
 
 let run accept_prob pol (geo, astr) = 

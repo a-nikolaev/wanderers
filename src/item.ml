@@ -72,7 +72,11 @@ let upgrade_prop (m0,m1) prop =
   | _ -> prop
 
 module PS = Set.Make(struct type t = prop let compare = compare end)
-type t = { name: string; prop: PS.t; imgindex:int; price: int; stackable: int option }
+
+(* kind size mat variant *)
+type barcode = {bc_kind: int; bc_size: int; bc_mat: mat; bc_var: int}
+
+type t = { name: string; prop: PS.t; imgindex:int; price: int; stackable: int option; barcode:barcode; }
 (* the parameter 'stackable' tells you the max size of the stack of such objects *)
 
 type item_type = t
@@ -85,7 +89,7 @@ let upgrade_item (m0,m1) item =
     | DmSteel -> 50 + item.price * 4
     | RustySteel -> (item.price+1) / 2
     | x -> item.price in
-  {item with prop = prop_u; price = price_u}
+  {item with prop = prop_u; price = price_u; barcode = {item.barcode with bc_mat = m1}}
 
 
 (* item obj has property p*)
@@ -366,6 +370,8 @@ module Coll = struct
     sw_weight_0,
     (sw_weight_4 -. sw_weight_0) /. (4.0**sw_weight_power)
 
+  let coin_barcode = {bc_kind=10; bc_size=0; bc_mat=Gold; bc_var=0;}
+
   let simple_random opt_kind =
     let kind = match opt_kind with 
       | None -> 
@@ -391,107 +397,116 @@ module Coll = struct
         (* 2kg for a long (two-handed sword) *)
         (* let weight = 0.5 +. 1.5 *. 0.25 *. 0.25 *. (s*.s) in *)
         let weight = sword_weight s in
-        let mat = Steel in 
+        let mat = Steel in
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty 
           |> PS.add (melee s 1.0) 
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable
           |> PS.add (`Material mat) in
-        {name = "Sword-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Sword-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 1 -> (* rogue / backsword *)
         let size = Random.int 8 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.10 in
         let mat = Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty 
           |> PS.add (melee (s *. 1.1) 1.0) 
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Backsword-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Backsword-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 2 -> (* sabre *)
         let size = 2 + Random.int 2 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.10 in
         let mat = Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty 
           |> PS.add (melee (s *. 1.05) 1.0) 
           |> PS.add (`Defense (0.05 +. 0.01 *. float (size-2)))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Sabre-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Sabre-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 3 -> (* blunt weapons *)
         let size = Random.int 8 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.2 in
         let mat = if size < 2 then Wood else Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty 
           |> PS.add (melee (s*.1.1) 1.2)
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Mace-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Mace-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 4 -> (* axe *)
         let size = 1 + Random.int 7 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.3 in
         let mat = Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty
           |> PS.add (melee (s*.1.2) 1.3)
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 5 -> (* polearm *)
         let size = 4 + Random.int 3 in
         let price = stdprice (size-1) in
         let s = float size in
         let weight = (sword_weight s) *. 1.1 in
         let mat = Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty
           |> PS.add (melee (s*.1.05) 1.05)
           |> PS.add (`Defense (0.08 +. 0.02 *. float (size-4)))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 6 -> (* armor *)
         let size = 1 + Random.int 5 in
         let price = stdprice size in 
         let s = float size in
         let weight = (sword_weight s) *. 6.0 in
         let mat = if size < 2 then Leather else Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty 
           |> PS.add (`Defense (0.05 +. 0.13 *. float size))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wearable
           |> PS.add (`Material mat) in
         let name = match size with 0 -> "Leather Armor" | 1 -> "Chain mail" | 2 -> "Plated mail" | 3 -> "Laminar armor" | _ -> "Plate armor" in
-        {name; prop; imgindex = index kind size; price; stackable = None; } 
+        {name; prop; imgindex = index kind size; price; stackable = None; barcode } 
     | 7 -> (* headgear *)
         let size = Random.int 6 in
         let price = stdprice size in 
         let s = float size in
         let weight = (sword_weight s) *. 2.0 in
         let mat = if size < 1 then Leather else Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty 
           |> PS.add (`Defense (0.07 +. 0.06 *. float size))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Headgear
           |> PS.add (`Material mat) in
         let name = match size with 0 -> "Leather Cap" | _ -> "Helmet" in
-        {name; prop; imgindex = index kind size; price; stackable = None; } 
+        {name; prop; imgindex = index kind size; price; stackable = None; barcode } 
     | 8 -> (* shield *)
         let size = 0 + Random.int 8 in
         let price = stdprice size in
         let s = float size in
         let weight = (sword_weight s) *. 1.1 in
         let mat = Steel in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let dd = if size > 1 then 0.05 else 0.0 in
         let prop = PS.empty
           |> PS.add (`Defense (0.08 +. 0.06 *. float size +. dd))
@@ -502,7 +517,7 @@ module Coll = struct
           | 0 -> PS.add (melee (s*.0.5) 1.5) prop 
           | 1 -> PS.add (melee (s*.0.25) 1.5) prop 
           | _ -> prop in
-        {name = "Shield-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Shield-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     
     | 9 -> (* ranged *)
         let size = Random.int 5 in
@@ -511,20 +526,24 @@ module Coll = struct
         let s = float size in
         let weight = (sword_weight s) in
         let mat = if size < 1 then Leather else Wood in 
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
         let prop = PS.empty
           |> PS.add (`Ranged Ranged.(
             {force = 0.85 *. (2.0 +. 0.9 *. x); projmass = 0.13 *. (5.0 +. 2.2 *. x); dmgmult = 1.5 *. ( 2.5 +. 0.2 *. x )}))
           |> PS.add (`Weight (weight)) 
           |> PS.add `Wieldable 
           |> PS.add (`Material mat) in
-        {name = "Ranged-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; }
+        {name = "Ranged-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     
     | _ -> (* coin *)
         let size = 0 in
         let price = 1 in
         let weight = 0.0 in
-        let prop = PS.empty |> PS.add (`Money) |> PS.add (`Weight weight) |> PS.add (`Material Gold) in
-        {name = "Coin"; prop; imgindex = index kind size; price; stackable = Some 999999}
+        let mat = Gold in
+        let barcode = {bc_kind=kind; bc_size=size; bc_mat=mat; bc_var=0;} in
+        assert (barcode = coin_barcode);
+        let prop = PS.empty |> PS.add (`Money) |> PS.add (`Weight weight) |> PS.add (`Material mat) in
+        {name = "Coin"; prop; imgindex = index kind size; price; stackable = Some 999999; barcode }
   
   let random opt_kind =
     let item = simple_random opt_kind in

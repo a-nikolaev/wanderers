@@ -111,6 +111,7 @@ let rset_lat g rig res = g.G.rm.(rig) <- {g.G.rm.(rig) with RM.lat = {g.G.rm.(ri
 module Atlas = struct
   type mark = 
     | Occupied of (faction * int)
+    | Market
     | StairsDown
     | StairsUp
 
@@ -190,16 +191,26 @@ module Atlas = struct
       (if G.Me.mem Up nb then [StairsUp] else []) @ 
       (if G.Me.mem Down nb then [StairsDown] else []) in
 
-    let (max_fac, max_fac_pop) = 
-      fold_lim 
-        ( fun (mf, mpop) f -> 
-            let pop = rm.RM.lat.Mov.fac.(f) + rm.RM.alloc.Mov.fac.(f) in
-            if pop > mpop && pol.Pol.prop.(f).Pol.cl <> Pol.Wild then (f,pop) else (mf,mpop)
-        ) (0, 0) 0 (Array.length rm.RM.lat.Mov.fac - 1) in
-    if max_fac_pop > 5 then
-      (Occupied (max_fac, max_fac_pop)) :: stairs_markls
-    else
-      stairs_markls
+    let stairs_markls =
+      let (max_fac, max_fac_pop) = 
+        fold_lim 
+          ( fun (mf, mpop) f -> 
+              let pop = rm.RM.lat.Mov.fac.(f) + rm.RM.alloc.Mov.fac.(f) in
+              if pop > mpop && pol.Pol.prop.(f).Pol.cl <> Pol.Wild then (f,pop) else (mf,mpop)
+          ) (0, 0) 0 (Array.length rm.RM.lat.Mov.fac - 1) in
+      if max_fac_pop > 5 then
+        (Occupied (max_fac, max_fac_pop)) :: stairs_markls
+      else
+        stairs_markls
+    in
+
+    let stairs_markls =
+      if RM.has_market rm then
+        Market :: stairs_markls
+      else
+        stairs_markls
+    in
+    stairs_markls
 
   let update pol geo atlas = 
     let currid = geo.G.currid in

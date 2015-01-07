@@ -42,11 +42,12 @@ let is_loc_in_prio geo rid a loc =
 
 (* make a path so that a unit exit a region only if the destination region is in region Priority List,
    so the unit does not disappear *)
-let make_long_random_path geo rid a u =
+let make_long_random_path geo reg u =
+  let a = reg.R.a in
   let rec path l dl n =
     let is_within = Area.is_within a l in
     if n > 0 && 
-          ( not is_within && is_loc_in_prio geo rid a l
+          ( not is_within && is_loc_in_prio geo reg.R.rid a l
             || is_within && Tile.classify (Area.get a l) = Tile.CFloor ) then 
       l :: path (l++dl) dl (n-1) 
     else [] in
@@ -66,23 +67,23 @@ let make_long_random_path geo rid a u =
       else if dy < 0 then path (u.Unit.loc ++ (0,-1)) (0,-1) (-dy)
       else []
 
-let make_short_random_path geo rid a u =
+let make_short_random_path geo reg u =
   let (x0,y0) = u.Unit.loc in
   let dstloc = 
     match Random.int 2 with
-    | 0 -> (Random.int (Area.w a + 2) - 1, y0)
-    | _ -> (x0, Random.int (Area.h a + 2) - 1)
+    | 0 -> (Random.int (Area.w reg.R.a + 2) - 1, y0)
+    | _ -> (x0, Random.int (Area.h reg.R.a + 2) - 1)
   in
-  if ((Area.is_within a dstloc) || (is_loc_in_prio geo rid a dstloc)) && (dstloc <> u.Unit.loc) then
-    Unit.make_path_to a u dstloc 
+  if ((Area.is_within reg.R.a dstloc) || (is_loc_in_prio geo reg.R.rid reg.R.a dstloc)) && (dstloc <> u.Unit.loc) then
+    Unit.make_path_to reg.R.a u dstloc 
   else
-    make_long_random_path geo rid a u
+    make_long_random_path geo reg u
 
-let make_some_random_path geo rid a u =
+let make_some_random_path geo reg u =
   if Random.int 2 = 0 then
-    make_short_random_path geo rid a u
+    make_short_random_path geo reg u
   else  
-    make_long_random_path geo rid a u
+    make_long_random_path geo reg u
 
 (* fulfilled actions *)
 let ff_path l = function hd::tl when l = hd -> tl | path -> path 
@@ -324,8 +325,26 @@ let deal_damage dt fnctgt u tu ue =
   (E.upd tu' ue)
 
 
+let find_location prop reg u =
+  let ls = 
+    fold_lim (fun acc i ->
+      fold_lim (fun acc j ->
+        if Area.get u.Unit.sight (i,j) > 0 && prop u reg (i,j) then
+          (i,j)::acc
+        else
+          acc
+      ) acc 0 (Area.h reg.R.a - 1)
+    ) [] 0 (Area.w reg.R.a - 1)
+  in
+  any_from_ls ls 
+
+let make_path_to_loc_with_property prop reg u =
+  match find_location prop reg u with
+  | Some loc when u.Unit.loc <> loc -> Some (Unit.make_path_to reg.R.a u loc)
+  | _ -> None
+
 (* come up with new actions *)
-let intel geo reg pol ue u =
+let intel geo astr reg pol ue u =
   (* if u does not like other_u: *)
   let g = List.filter (fun other_u -> 
     match Decision.U.get_intention pol u other_u with Decision.Kill | Decision.Avoid -> true | _ -> false) 
@@ -388,10 +407,34 @@ let intel geo reg pol ue u =
                       match Unit.get_sp u' with
                         Species.Cow, _ -> 0.9 | Species.Horse, _ -> 0.80 | _ -> -0.1 in
                     
+                    let default () =
+                        {u' with Unit.ac = [Walk (make_some_random_path geo reg u', 0.0)]} 
+                    in
+                      
                     if Random.float 1.0 < to_wait then
                       {u' with Unit.ac = [Wait (u'.Unit.loc, 0.0)]} 
                     else
-                      {u' with Unit.ac = [Walk (make_some_random_path geo reg.R.rid reg.R.a u', 0.0)]} )
+                    ( match Org.Astr.get_from_unit u' astr with
+                      | Some a when Org.Actor.get_wcl a = Org.Actor.WC_Merchant -> 
+                          (* Merchant walking *)
+                          if R.zone_check reg (u'.Unit.loc) (R.Zone.Cons RM.CMarket) && Random.float 1.0 < 0.98 then
+                            {u' with Unit.ac = [Wait (u'.Unit.loc, 0.0)]} 
+                          else
+                          ( if RM.has_market geo.G.rm.(reg.R.rid) then
+                              let path = 
+                                let prop = (fun u r ij -> R.zone_check r ij (R.Zone.Cons RM.CMarket)) in
+                                match make_path_to_loc_with_property prop reg u' with
+                                | Some path -> path 
+                                | None -> make_some_random_path geo reg u'
+                              in
+                              {u' with Unit.ac = [Walk (path, 0.0)]} 
+                            else
+                              default()
+                          )
+                      | _ -> default()
+                    )
+                  )
+
                 | Some (ownloc, tid, tloc) ->
                   (* attack the enemy there *)
                   ( 
@@ -399,7 +442,7 @@ let intel geo reg pol ue u =
                     ( let path = Unit.make_path_to reg.R.a u' tloc in
                       match path with
                         [] ->
-                          { u' with Unit.ac = [Walk (make_some_random_path geo reg.R.rid reg.R.a u', 0.0)];
+                          { u' with Unit.ac = [Walk (make_some_random_path geo reg u', 0.0)];
                             Unit.tactmem = Unit.TactMem.empty;
                           }
                       | _ -> {u' with Unit.ac = [Walk (path, 0.0)]} 
@@ -436,11 +479,11 @@ let intel geo reg pol ue u =
 let pick_up_items (u, reg) = 
   match Area.get reg.R.optinv u.Unit.loc with
   | Some inv ->
-      let eval = Simorg.eval_slow in
+      let eval = Org.eval_slow in
 
       let upd_core, upd_optinv = 
         Inv.fold (fun (acc_core, acc_optinv) _ _ bunch -> 
-          let core, ls = Simorg.try_bunch_eval eval acc_core bunch in
+          let core, ls = Org.try_bunch_eval eval acc_core bunch in
             (core, List.fold_left (fun acc bunch -> Inv.raw_ground_drop_bunch bunch acc) acc_optinv ls)
           ) 
           (Unit.get_core u, None) 
@@ -645,7 +688,7 @@ let run_for_one dt u s (reg, astr, need_input) =
           let u' = pick_up_items (u', reg) in
           (* /end picking up items *)
 
-          let u'' = (u' |> intel s.geo reg s.pol ue) in
+          let u'' = (u' |> intel s.geo s.astr reg s.pol ue) in
           (updateu u'', Org.Astr.update_from_unit u'' rid astr_upd, need_input) )
         (* or wait for input *)
         else
