@@ -64,7 +64,7 @@ let get_random_unit_core pol rm =
 
 module Actor = struct
   type cl = 
-    Merchant of Item.Cnt.t | Craftsman | Defender | Adventurer | Prophet
+    Merchant of Trade.trader | Craftsman | Defender | Adventurer | Prophet
 
   type wcl = WC_Adventurer | WC_Merchant
   let wcl_of_cl = function 
@@ -88,7 +88,9 @@ module Actor = struct
   let make_from_core rid core cl =
     {aid = gen_id(); core; rid = rid; cl = cl;}
 
-  let update_core a core = {a with core}
+  let update_core core a = {a with core}
+  
+  let update_cl cl a = {a with cl}
 
   let decompose a = Unit.Core.decompose a.core
     (* items of a merchant don't get decomposed? *)
@@ -97,6 +99,7 @@ module Actor = struct
   let get_aid a = a.aid
   let get_core a = a.core
   let get_wcl a = a.cl |> wcl_of_cl
+  let get_cl a = a.cl 
 
   let make_unit a loc = 
     let u = Unit.make_core (get_core a) None loc in
@@ -224,11 +227,11 @@ module Astr = struct
               let cl = 
                 let adv = stats_get Actor.WC_Adventurer astr.stats in
                 let merch = stats_get Actor.WC_Merchant astr.stats in
-                if adv < 2 * merch then Actor.Adventurer 
+                if adv < 4 * merch then Actor.Adventurer 
                 else
                   ( match Random.int 2 with
-                    | 0 -> Actor.Adventurer
-                    | _ -> Actor.Merchant (Item.Cnt.empty_unlimited)
+                    | 0 -> Actor.Merchant (Trade.trader_init 100)
+                    | _ -> Actor.Adventurer
                   )
               in
 
@@ -255,7 +258,7 @@ module Astr = struct
       Some aid ->
         ( match get aid astr with
           | Some a -> 
-              let a_upd = Actor.update_core a (Unit.get_core u) in
+              let a_upd = Actor.update_core (Unit.get_core u) a in
               move_actor a_upd rid astr
           | None -> 
               (* failwith "Astr.update_from_unit: actor does not exist" *)
@@ -380,7 +383,7 @@ let alternative_cores core bunch =
                 | _ -> acc
               )
           | None -> acc
-        ) initial_ls cnt.Item.Cnt.bunch in
+        ) initial_ls cnt in
       alt_cores_ls
   | None ->
       []
@@ -391,8 +394,11 @@ let eval_quick c1 c2 =
   str1 > str2
 
 let eval_slow c1 c2 =
-  let uc1, uc2 = fake_fight c1 c2 in
-  Unit.Core.get_hp uc1 > Unit.Core.get_hp uc2 
+  let test () =
+    let uc1, uc2 = fake_fight c1 c2 in
+    Unit.Core.get_hp uc1 > Unit.Core.get_hp uc2 
+  in
+  test () && test ()
 
 (* try to put on the given item
  *
@@ -404,3 +410,15 @@ let try_bunch_eval eval_better core bunch =
       if eval_better c bc then (c,ls) else (bc,bls)
     ) 
     (core, [ bunch ] ) alt_ls
+
+(* similar, but also compares to the best so far core to returns Some (core, drop_bunches_ls) or None *)
+let try_bunch_eval_option eval_better another_best_core core bunch =
+  let alt_ls = alternative_cores core bunch in
+  let result, _ = 
+    List.fold_left 
+      (fun (acc, bc) (c,ls) -> 
+        if eval_better c bc && eval_better c another_best_core then (Some (c,ls), c) else (acc, bc)
+      ) 
+      (None, core) alt_ls
+  in
+  result

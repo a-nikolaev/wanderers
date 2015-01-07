@@ -134,7 +134,8 @@ let is_wearable obj = PS.mem `Wearable obj.prop
 let is_a_headgear obj = PS.mem `Headgear obj.prop
 let is_wieldable obj = PS.mem `Wieldable obj.prop
 
-
+let string_of_item i =
+  Printf.sprintf "[%i,%i] p=%i (%s)" i.barcode.bc_kind i.barcode.bc_size i.price i.name
 
 (* integer map *)
 module M = Map.Make(struct type t = int let compare = compare end)
@@ -160,6 +161,7 @@ module Cnt = struct
   let make slot caplim =
     {bunch = M.empty; slot; caplim}
 
+  let default_coins_slot = 4 
   let empty_nat_human = 
     let ls = [(0,Hand); (1,Body); (2,Hand); (3, Head); (4,Purse)] in
     let len = List.length ls in
@@ -308,7 +310,7 @@ module Cnt = struct
       | Not_found -> None
   
   let fold f acc c =
-    M.fold (fun si bunch acc -> f acc si bunch) c acc
+    M.fold (fun si bunch acc -> f acc si bunch) c.bunch acc
 
   let remove_everything c = 
     {c with bunch = M.empty}
@@ -557,6 +559,11 @@ module Coll = struct
         else
           item
     | None -> item
+
+  let coin = 
+    let coin = random (Some 10) in
+    assert (coin.barcode = coin_barcode);
+    coin
 
 end
 

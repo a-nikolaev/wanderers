@@ -82,6 +82,16 @@ let get ci si inv =
   else
     None
 
+(* get a bunch from the container #ci, slot si *)
+let get_bunch ci si inv =
+  if M.mem ci inv.cnt then
+    let c = M.find ci inv.cnt in
+    match Cnt.get_bunch si c with
+      Some (obj, c') -> Some (obj, {inv with cnt = M.add ci c' inv.cnt})
+    | None -> None
+  else
+    None
+
 (* examine an object from the container #ci, slot si *)
 let examine ci si inv =
   if M.mem ci inv.cnt then
@@ -95,6 +105,8 @@ let container ci inv =
     Some (M.find ci inv.cnt)
   else
     None
+
+let upd_container ci cnt inv = if ci < inv.limit then {inv with cnt = M.add ci cnt inv.cnt} else inv
 
 let fold f acc inv =
   M.fold (fun ci c acc -> 
@@ -112,6 +124,7 @@ let remove_everything inv =
   {inv with cnt = cnt'}
 
 
+let default_coins_container = 0 
 let default = 
   {cnt = map_of_list [(0, Cnt.empty_nat_human); (1, Cnt.empty_unlimited)]; limit = 4}
 

@@ -229,7 +229,9 @@ let economics speedup pol g facnum rid =
             if totpop > 3 && frac > 0.33 && Random.float 1.0 < chance then
             ( if Resource.lesseq (Resource.scale 2.0 house_price) res_lat && len < 4 then
               ( 
-                let c_type = if len >= 1 && Random.int 10 = 0 then RM.CMarket else RM.CHouse in
+                let c_type = 
+                  if (len = 0 && Random.int 50 = 0) || (len >= 1 && Random.int 10 = 0) 
+                  then RM.CMarket else RM.CHouse in
                 
                 let loc = match len with 0 -> (0,0) | 1 -> (1,0) | 2 -> (0,1) | _ -> (1,1) in
                 g.G.rm.(rid) <- RM.({rm with cons = {constype = c_type; consloc=loc} :: cons });

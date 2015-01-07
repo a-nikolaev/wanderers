@@ -20,11 +20,11 @@ open Common
 open Org
 open Global
 
+
 let compute_core_value core = 
   let v = core |> Unit.Core.decompose |> Resource.numeric |> float in 
   let fm = Unit.Core.get_fm core in
   v**4.0 *. fm
-
 
 (* returns (bunch, (core, value)) option;  the 'bunch' contains what is left *)
 let try_to_keep_the_bunch eval_better (core, value) bunch =
@@ -39,8 +39,7 @@ let try_to_keep_the_bunch eval_better (core, value) bunch =
 
   match opt_inv_alt with
     Some inv_alt ->
-      let core_alt = 
-        Unit.Core.adjust_aux_info {core with Unit.Core.inv = inv_alt} in
+      let core_alt = Unit.Core.upd_inv inv_alt core in
       if eval_better core core_alt then 
         None
       else
@@ -182,7 +181,7 @@ let scenario_meet_a_local pol a opp_core (g,astr) =
     dissolve_lat_res g rid res_to_dissolve;
 
     (g, astr) 
-    |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
+    |> update_rid_actor_g_astr rid (Actor.update_core my_core_upd2 a)
     |> update_rid_core_g_astr rid opp_core_upd2
   )
   else
@@ -212,10 +211,50 @@ let scenario_meet_an_actor pol a opp_actor (g,astr) =
     dissolve_lat_res g rid res_to_dissolve;
 
     (g, astr) 
-    |> update_rid_actor_g_astr rid (Actor.update_core a my_core_upd2)
-    |> update_rid_actor_g_astr rid (Actor.update_core opp_actor opp_core_upd2)
+    |> update_rid_actor_g_astr rid (Actor.update_core my_core_upd2 a)
+    |> update_rid_actor_g_astr rid (Actor.update_core opp_core_upd2 opp_actor)
   else
-    (g, astr)
+    (* is he a trader? *)
+    match Actor.get_cl opp_actor, Actor.get_cl a with
+    | Actor.Merchant opp_tr, Actor.Merchant _ -> 
+        (g, astr)
+    | Actor.Merchant opp_tr, _ ->
+        (* move money to Trader *)
+        ( match Inv.get_bunch Inv.default_coins_container Item.Cnt.default_coins_slot (UC.get_inv opp_core) with
+          | Some (money_bunch, opp_inv) when money_bunch.Item.Cnt.item.barcode = Item.Coll.coin_barcode  ->
+              
+              let opp_tr = Trade.exchange [] [money_bunch] opp_tr in
+
+              let coin = money_bunch.item in
+              
+              (* trade *)
+              let u_opp_tr, u_my_core = Simtrade.barter_with opp_tr my_core in
+              
+              (* put money back *)
+              let u_opp_core, uu_opp_tr = 
+                (* extract money from Trader *)
+                match Trade.extract coin.Item.barcode u_opp_tr with
+                | Some (u_money_bunch, uu_opp_tr) -> 
+
+                  let u_opp_core = 
+                    ( match Inv.put_somewhere_bunch u_money_bunch opp_inv with
+                      | Item.Cnt.MoveBunchSuccess inv' -> UC.upd_inv inv' opp_core
+                      | _ -> opp_core )
+                  in
+
+                  (u_opp_core, uu_opp_tr)
+
+                | None -> (opp_core, u_opp_tr)
+              in
+
+              (g, astr) 
+              |> update_rid_actor_g_astr rid (a |> Actor.update_core u_my_core)
+              |> update_rid_actor_g_astr rid (opp_actor |> Actor.update_core u_opp_core |> Actor.update_cl (Actor.Merchant uu_opp_tr))
+
+
+          | _ -> (g, astr)
+        )
+    | _ -> (g, astr)
  
 type encounter = Enc_Local | Enc_Actor | Enc_Exit | Enc_Nothing
 
@@ -334,7 +373,7 @@ let sim_merchant pol a (g, astr) =
   | None -> (g, astr)
 
 let heal a =
-  Actor.update_core a (Unit.Core.heal 20.0 (Actor.get_core a))
+  Actor.update_core (Unit.Core.heal 20.0 (Actor.get_core a)) a
 
 (* Dispatch *)  
 let sim_one pol a ga =

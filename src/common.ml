@@ -311,7 +311,7 @@ module Unit = struct
                   | x, _ -> x
                 )
             )
-            None cnt.Item.Cnt.bunch 
+            None cnt 
           in
           ( match accum with 
             | Some (msum, mmax) ->
@@ -334,7 +334,7 @@ module Unit = struct
                 None -> acc
               | x -> x
           )
-          base cnt.Item.Cnt.bunch
+          base cnt
       | None -> base
     
     let comp_defense_unencumbered cu =
@@ -346,7 +346,7 @@ module Unit = struct
               let d = Item.get_defense bunch.Item.Cnt.item in
               acc +. d -. (d *. acc)
           )
-          base cnt.Item.Cnt.bunch
+          base cnt
       | None -> base
   
     (* helper function *)
@@ -361,7 +361,7 @@ module Unit = struct
                 else
                   acc
             )
-            accum cnt.Item.Cnt.bunch
+            accum cnt
         | None -> accum in
       g (Inv.container cnt_num uc.inv) 0.0
 
