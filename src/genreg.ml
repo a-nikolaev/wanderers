@@ -238,10 +238,10 @@ let add_market a zones ground_tile (start_x, start_y) wtogen htogen =
     for i = x to x + dx do
       for j = y to y + dy do
         if (i=x || i=x+dx) && (j = y || j =y+dy) then
-          Area.set a (i,j) Tile.Wall
+          Area.set a (i,j) (Tile.MarketStand (Random.int 6))
         else
         ( R.Zone.mark zones (i,j) (R.Zone.Cons RM.CMarket);
-          Area.set a (i,j) Tile.WoodenFloor
+          Area.set a (i,j) ground_tile
         )
       done
     done;

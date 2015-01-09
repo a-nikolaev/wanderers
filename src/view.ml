@@ -371,6 +371,87 @@ let draw_inventory t (w,h) inv gr (i,j)=
     draw_container_auto_width t (w,h) c gr (i,j-h*ci)
   ) inv.Inv.cnt
 
+(* Frame *)
+let draw_frame t gr (i0,j0) w h =
+  let img = Pos.ui_stat ++ (11, 1) in
+  Draw.draw_tile_stretch_wh (w, h) 1 1 img Draw.gr_ui (i0,j0-(h-1));
+  (* left, right*)
+  for j = j0 - (h - 1) to j0 do
+    Draw.draw_tile (img++(-1,0)) Draw.gr_ui (i0-1, j); (* left *)
+    Draw.draw_tile (img++(+1,0)) Draw.gr_ui (i0+w, j); (* right *)
+  done;
+  (* top, bottom*)
+  for i = i0 to i0 + w - 1 do
+    Draw.draw_tile (img++(0,-1)) Draw.gr_ui (i, j0+1); (* top *)
+    Draw.draw_tile (img++(0,+1)) Draw.gr_ui (i, j0-h); (* bottom *)
+  done;
+  (* corners *)
+  Draw.draw_tile (img++(-1,-1)) Draw.gr_ui (i0-1, j0+1); (* top left *)
+  Draw.draw_tile (img++(+1,-1)) Draw.gr_ui (i0+w, j0+1); (* top right *)
+  Draw.draw_tile (img++(-1,+1)) Draw.gr_ui (i0-1, j0-h); (* bottom left *)
+  Draw.draw_tile (img++(+1,+1)) Draw.gr_ui (i0+w, j0-h); (* bottom right *)
+  ()
+
+(* Barter *)
+let draw_barter t bar gr (i,j) =
+  (* normal big coords to small *)
+  let convert =
+    let factorx = 2 in
+    let factory = 2 in
+    (fun (i,j) -> (factorx * i, factory * j))
+  in
+
+  let height =
+    Array.fold_left (fun h ui_el ->
+      match ui_el with
+      | Barter.C _ -> h + 1
+      | Barter.Lbl _ -> h + 1
+      | Barter.Info -> h + 3
+    ) 0 bar.Barter.s.Barter.ui_el
+  in
+
+  draw_frame t gr (i-1,j) (bar.Barter.s.Barter.width+1) height; 
+
+  ignore( 
+    Array.fold_left (fun dj ui_el ->
+      match ui_el with
+      | Barter.C (ci, lbl) ->
+          let cnt = bar.Barter.cnt.(ci) in
+          draw_container_auto_width t (12, 1) cnt gr (i, j+dj);
+          if (ci = bar.Barter.ci) then
+          ( (* inventory cursor *)
+            set_color 1.0 1.0 1.0 1.0; 
+            draw_cursor 0 gr (i + bar.Barter.si, j + dj)
+          );
+          (* text label *)
+          set_color 0.34 0.34 0.34 1.0;
+          Draw.put_string lbl Draw.gr_sml_ui (convert (i-1,j+dj));
+          set_color 1.0 1.0 1.0 1.0;
+          dj-1
+      | Barter.Info ->
+          let cnt = bar.Barter.cnt.(bar.Barter.ci) in
+          let height = 3 in
+          ( match Item.Cnt.examine bar.Barter.si cnt with
+            | Some bunch ->
+                output_object_desc bunch.Item.Cnt.item (convert (i, j+dj))
+            | None -> ()
+          );
+          (dj - height)
+      | Barter.Lbl ls ->
+          set_color 0.34 0.34 0.34 1.0;
+          let s = 
+            List.fold_left (fun acc lbl ->
+              match lbl with
+              | Barter.Text s -> acc ^ s 
+              | Barter.TrSellPrice ci -> acc ^ string_of_int (Trade.price_sell_cnt bar.Barter.s.Barter.tr bar.Barter.cnt.(ci))
+              | Barter.TrBuyPrice ci -> acc ^ string_of_int (Trade.price_buy_cnt bar.Barter.s.Barter.tr bar.Barter.cnt.(ci))
+            ) "" ls
+          in
+          Draw.put_string s Draw.gr_sml_ui (convert (i-1,j+dj));
+          set_color 1.0 1.0 1.0 1.0;
+          (dj - 1)
+    ) 0 bar.Barter.s.Barter.ui_el
+  )
 
 let is_visible_well vision ij = Area.get vision ij > 0 || i_see_all 
 let is_visible_somewhat area vision (px,py) = 
@@ -591,6 +672,7 @@ let draw_area_tile_obstacles t reg rm vision (i,j) =
         in
         ( match tile with
             Tile.Wall -> draw_obj (0,9)
+          | Tile.MarketStand i -> draw_obj (7+i,9)
           | Tile.Door ds -> draw_door ds (2,9)
           | Tile.DungeonDoor ds -> draw_door ds (2,7) 
           | Tile.CaveDoor ds -> draw_door ds (2,11) 
@@ -969,6 +1051,8 @@ let draw_state t s =
       set_color 1.0 1.0 1.0 1.0; 
       draw_cursor t Draw.gr_map (s.State.look_cursor)
        
+  | State.CtrlM.Barter (bar,_,_) ->
+      draw_barter t bar Draw.gr_ui inv_coords
 
   | State.CtrlM.Inventory (invclass,ic,ii,u,_) ->
  
@@ -981,8 +1065,12 @@ let draw_state t s =
       (
         let w = 14 in
         let h = let _,y = shift_ground_inv in -y + 3 in
+        
+        (*
         let img_bg = Pos.ui_stat ++ (8, 0) in
         Draw.draw_tile_stretch_wh (w, h) 1 1 img_bg Draw.gr_ui (inv_coords -- (1,h-2))
+        *)
+        draw_frame t Draw.gr_ui (inv_coords -- (1,0)) (w-1) (h-2) 
       );
 
       let unit_inv = Unit.get_inv u in

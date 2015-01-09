@@ -328,6 +328,8 @@ module Cnt = struct
     with
       Compacting_failure -> c
 
+  let is_empty c = M.cardinal c.bunch > 0
+
 end
 
 (* Collection of objects *)
@@ -476,7 +478,7 @@ module Coll = struct
         {name = "Axe-"^(string_of_int size); prop; imgindex = index kind size; price; stackable = None; barcode }
     | 6 -> (* armor *)
         let size = 1 + Random.int 5 in
-        let price = stdprice size in 
+        let price = stdprice size * 2 in 
         let s = float size in
         let weight = (sword_weight s) *. 6.0 in
         let mat = if size < 2 then Leather else Steel in 

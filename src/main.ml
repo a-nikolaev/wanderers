@@ -56,6 +56,9 @@ let normal_keys_input ctrl k g s =
       | '0' -> g (Msg.Num 0)
       | '1' -> g (Msg.Num 1)
       | '2' -> g (Msg.Num 2)
+      | '3' -> g (Msg.Num 3)
+      | '4' -> g (Msg.Num 4)
+      | '5' -> g (Msg.Num 5)
       | 'f' -> g Msg.Fire
       | 'v' -> g Msg.Look
       | '<' -> g Msg.UpStairs

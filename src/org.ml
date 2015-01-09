@@ -182,6 +182,9 @@ module Astr = struct
 
   let get_actors_num_at rid astr = Sa.cardinal (astr.regsa.(rid))
   
+  let get_actors_set_at rid astr = astr.regsa.(rid)
+  let get_actors_at rid astr = Sa.elements (astr.regsa.(rid))
+  
   let get_random_from rid astr =
     let sa = astr.regsa.(rid) in
     let num = Sa.cardinal sa in
@@ -224,14 +227,21 @@ module Astr = struct
           | Some (core, lat_res_left) when core_satisfies core ->
               rset_lat g rid lat_res_left;
 
-              let cl = 
+              let cl, core = 
                 let adv = stats_get Actor.WC_Adventurer astr.stats in
                 let merch = stats_get Actor.WC_Merchant astr.stats in
-                if adv < 4 * merch then Actor.Adventurer 
+                if adv < 4 * merch then (Actor.Adventurer, core) 
                 else
                   ( match Random.int 2 with
-                    | 0 -> Actor.Merchant (Trade.trader_init 100)
-                    | _ -> Actor.Adventurer
+                    | 0 ->
+                        let money = ( Unit.Core.decompose core |> Resource.numeric |> ( * ) 2 ) |> min 200 |> max 1 in
+                        if money >= 10 then
+                          let tr = Trade.trader_init money in
+                          let core, tr = Trade.move_money_from_tr_to_core (core, tr) in
+                          (Actor.Merchant tr, core)
+                        else
+                          (Actor.Adventurer, core)
+                    | _ -> (Actor.Adventurer, core)
                   )
               in
 

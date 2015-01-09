@@ -27,6 +27,7 @@ module CtrlM = struct
     | Target of (Unit.t list)
     | Look of (Unit.t list)
     | Inventory of invprop 
+    | Barter of Barter.t * Unit.t * (Unit.t list)
     | WaitInput of (Unit.t list)
     | OpenAtlas of openatlasprop * t
     | Console of Unit.t * t
@@ -286,6 +287,19 @@ let respond s =
   let reg = G.curr s.geo in
   let validate ij = Area.put_inside reg.R.a ij in
   
+  (* update units lists in CtrlM *)
+  let rec traverse e = 
+    let proc_one u = E.id (u.Unit.id) e in
+    let proc ls = List.fold_left (fun acc u -> (match proc_one u with Some uu -> uu::acc | _ -> acc)) [] ls |> List.rev in        
+    function
+      | CtrlM.WaitInput ls -> CtrlM.WaitInput (proc ls)
+      | CtrlM.Target ls -> CtrlM.Target (proc ls)
+      | CtrlM.Look ls -> CtrlM.Look (proc ls)
+      | CtrlM.Barter (bar, u, ls) -> CtrlM.Barter (bar, (match proc_one u with Some uu -> uu | _ -> u), proc ls)
+      | CtrlM.OpenAtlas (rloc, cm) -> CtrlM.OpenAtlas (rloc, traverse e cm)
+      | cm -> cm
+  in
+
   let meta_upd_one utl nue =
     let s' = {s with geo = G.upd {reg with R.e=nue} s.geo} in
     if utl <> [] then
@@ -340,10 +354,113 @@ let respond s =
       
       | Msg.Look | Msg.Confirm when s.look_cursor <> u.Unit.loc -> 
 
+          let b_pos_obj = match Area.get reg.R.obj.R.Obj.posobj s.look_cursor with Some _ -> true | _ -> false in
+          let ls_merchants = 
+            let ls = E.at s.look_cursor reg.R.e in
+            let ls = List.fold_left (fun acc u -> 
+                match u.Unit.optaid with
+                | Some aid -> 
+                    ( match Org.Astr.get aid s.astr with 
+                      | Some a -> (match Org.Actor.get_cl a with Org.Actor.Merchant tr -> (u,a,tr)::acc | _ -> acc)
+                      | None -> acc
+                    )
+                | None -> acc
+              ) [] ls 
+            in
+            ls
+          in
+
+          if b_pos_obj then
+          ( (* if there a positional object *)
             let delaytime = Unit.get_default_wait u in
             meta_upd_one utl (E.upd {u with Unit.ac = 
                 [ Timed(Some u.Unit.loc, 0.0, delaytime, Prepare(OperateObj (s.look_cursor, OpObjOpen)))]
-              } reg.R.e) 
+              } reg.R.e)
+          )
+          else 
+            ( match any_from_ls ls_merchants with
+              | Some (mu, ma, mtr) 
+                when (loc_infnorm (s.look_cursor -- u.Unit.loc) <= 1)
+                && ( match Decision.U.get_intention s.pol mu u with
+                     | Decision.Kill | Decision.Avoid -> false | _ -> true ) -> (* merchant (unit, actor, trader) *)
+                  (* if there is a merchant *)
+
+                  (* put money into tr *)
+                  let mtr, mu = 
+                    let inv = Unit.get_inv mu in
+                    match Inv.get_bunch Inv.default_coins_container Item.Cnt.default_coins_slot inv with
+                    | Some (money_bunch, inv2) when money_bunch.Item.Cnt.item.barcode = Item.Coll.coin_barcode  ->
+                        let mtr = Trade.exchange [] [money_bunch] mtr in
+                        let mu = Unit.upd_inv inv2 mu in
+                        (mtr, mu)                        
+                    | _ -> (mtr, mu) 
+                  in
+
+                  (* print their's stuff out *)
+                  (*
+                  Trade.print_trader mtr;
+                  *)
+
+                  (* make static *)
+                  let static =
+                    let cnt_trader = Barter.make_offer_cnt u mtr in
+                    Barter.(
+                    { tr = mtr;
+                      n = 6;
+                      width = 12;
+                      src =
+                        ( let arr =  Array.make 10 None in
+                          arr.(0) <- Some (Barter.SrcGround u.Unit.loc);
+                          arr.(1) <- Some (Barter.SrcUnit (u.Unit.id, 0));
+                          arr.(2) <- Some (Barter.SrcUnit (u.Unit.id, 1));
+                          arr.(3) <- Some (Barter.SrcOther Item.Cnt.empty_unlimited);
+                          arr.(4) <- Some (Barter.SrcOther Item.Cnt.empty_unlimited);
+                          arr.(5) <- Some (Barter.SrcOther cnt_trader);
+                          arr
+                        );
+                      permissions = 
+                        (
+                          let me = [|false; true; true; true; false; false|] in
+                          let trader = [|false; false; false; false; true; true|] in
+                          [| 
+                            Array.make 6 false;
+                            me;
+                            me;
+                            me;
+                            trader;
+                            trader;
+                          |]
+                        );
+                      tr_buy_ci = 3; (* trader's buy *)
+                      tr_sell_ci = 4; (* trader's sell *)
+                      tr_merchant_ci = 5; (* trader's stuff *)
+
+                      u_uid = u.Unit.id;
+                      m_uid = mu.Unit.id;
+                      m_aid = ma.Org.Actor.aid;
+
+                      ui_el = 
+                        [| 
+                          C (1, "1."); C (2, "2."); Info; 
+                          Lbl [Text "3.to Sell ("; TrBuyPrice 3; Text ")"]; Barter.C (3, ""); 
+                          Lbl [Text "4.to Buy  ("; TrSellPrice 4; Text ")"]; Barter.C (4, ""); 
+                          Lbl [Text "5.Merchant's counter"]; Barter.C (5, "") 
+                        |]
+                    })
+                  in
+
+                  (* make barter *)
+                  let bar = Barter.init reg static in
+                  
+                  let e = E.upd mu reg.R.e in
+                  let reg = {reg with R.e = e} in
+                  let geo = G.upd reg s.geo in 
+                  let astr = s.astr |> Org.Astr.update (Org.Actor.update_core (Unit.get_core mu) ma) in
+                  {s with astr = astr; geo = geo; cm = CtrlM.Barter (bar, u, utl)}   
+
+              | _ -> {s with cm = CtrlM.WaitInput (u::utl)} 
+            )
+
 
       | Msg.Cancel -> {s with cm = CtrlM.WaitInput (u::utl)} 
       | _ -> s
@@ -511,6 +628,41 @@ let respond s =
             upd_one (E.upd {u_upd with Unit.ac = [Wait (u.Unit.loc, 0.0)]} reg.R.e) 
         | _ -> s
       )
+  | CtrlM.Barter (bar, u, utl) ->
+      
+      let upd_reg_astr reg astr =
+        let s' = {s with geo = G.upd reg s.geo; astr = astr;} in
+        if utl <> [] then
+          {s' with cm = traverse reg.R.e (CtrlM.WaitInput utl)}
+        else 
+          {s' with cm = CtrlM.Normal}
+      in
+      
+      let keep_bartering bar reg =
+        let s2 = {s with geo = G.upd reg s.geo} in
+        {s2 with cm = traverse reg.R.e (CtrlM.Barter (bar, u, utl))}
+      in
+
+      ( function
+        | Msg.Up -> let bar = Barter.up bar in keep_bartering bar reg
+        | Msg.Down -> let bar = Barter.down bar in keep_bartering bar reg
+        | Msg.Left -> let bar = Barter.left bar in keep_bartering bar reg
+        | Msg.Right -> let bar = Barter.right bar in keep_bartering bar reg
+        | Msg.Num ci -> 
+            let bar, reg = Barter.move_item_to ci (bar, reg) in 
+            let reg = Barter.update_all_sources bar reg in
+            keep_bartering bar reg
+        | Msg.Confirm ->
+            
+            let bar, reg, astr = Barter.confirm (bar, reg, s.astr) in
+            let s = keep_bartering bar reg in
+            {s with astr = astr}
+
+        | Msg.Cancel -> 
+            let reg, astr = Barter.cancel (bar, reg, s.astr) in
+            upd_reg_astr reg astr 
+        | _ -> s 
+      )
   | CtrlM.OpenAtlas ((z,(x,y)) as rloc, prev_cm) ->
       let move (dx,dy,dz) = 
         let rloc1 = (z+dz, (x+dx, y+dy)) in
@@ -531,18 +683,6 @@ let respond s =
       )
   | CtrlM.Console (u, prev_cm) ->
     
-      (* update units lists in CtrlM *)
-      let rec traverse e = 
-        let proc_one u = E.id (u.Unit.id) e in
-        let proc ls = List.fold_left (fun acc u -> (match proc_one u with Some uu -> uu::acc | _ -> acc)) [] ls |> List.rev in        
-        function
-          | CtrlM.WaitInput ls -> CtrlM.WaitInput (proc ls)
-          | CtrlM.Target ls -> CtrlM.Target (proc ls)
-          | CtrlM.Look ls -> CtrlM.Look (proc ls)
-          | CtrlM.OpenAtlas (rloc, cm) -> CtrlM.OpenAtlas (rloc, traverse e cm)
-          | cm -> cm
-      in
-
       let meta_upd nue =
         let s' = {s with geo = G.upd {reg with R.e=nue} s.geo} in
         {s' with cm = traverse nue prev_cm}
@@ -569,7 +709,7 @@ let respond s =
                 | "blink" ->
                     ( match find_walkable_location_reg reg with
                       | loc -> 
-                          let ns = meta_upd_unit Unit.({u with loc = loc; pos = vec_of_loc loc}) in
+                          let ns = meta_upd_unit Unit.({u with loc = loc; pos = vec_of_loc loc; ac = []}) in
                           Vision.update_sight (Some ns.controller_id) (G.curr ns.geo) ns.vision;
                           ns
                       | _ -> {s with cm = prev_cm}

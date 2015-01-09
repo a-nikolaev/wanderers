@@ -1,3 +1,19 @@
+(*           Wanderers - open world adventure game.
+            Copyright (C) 2013-2014  Alexey Nikolaev.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
+
 open Base
 open Item
 
@@ -10,6 +26,9 @@ let comp_price mult b =
 
 let comp_price_ls mult ls = 
   List.fold_left (fun acc b -> acc + comp_price mult b) 0 ls 
+
+let comp_price_cnt mult cnt =
+  Cnt.fold (fun acc _ b -> acc + comp_price mult b) 0 cnt
 
 (* Barcode Map *)
 module M = Map.Make (struct type t = barcode let compare = compare end)
@@ -33,14 +52,57 @@ let trader_empty = {skill = 1.5; stuff = M.empty; kb = M.empty}
 
 let trader_init money = 
   let coin = Item.Coll.coin in
-  let b = Cnt.({item = coin; amount = money}) in
-  {skill = 1.5; stuff = put_bunch b M.empty; kb = M.add Coll.coin_barcode coin M.empty}
+    
+  let rec additem attempts_left ls money =
+    if attempts_left > 0 && money > 0 then
+    ( let obj = Item.Coll.random None in
+      let price = Item.decompose obj |> Resource.numeric in
+      if price <= money then
+        additem attempts_left (Cnt.({item = obj; amount = 1})::ls) (money - price)
+      else
+        additem (attempts_left - 1) ls money
+    )
+    else
+      (ls, money)
+  in
+
+  let money_keep = money/2 in
+  let money_stuff = money - money_keep in
+
+  let ls, money_left = additem 5 [] money_stuff in
+  let money = money_keep + money_left in
+ 
+  (* put money *)
+  let sf = 
+    let b = Cnt.({item = coin; amount = money}) in
+    if money > 0 then put_bunch b M.empty else M.empty 
+  in
+  let kb = M.add Coll.coin_barcode coin M.empty in
+
+  (* put stuff *)
+  let sf, kb = List.fold_left (fun (sf,kb) b -> (put_bunch b sf, M.add b.Cnt.item.barcode b.Cnt.item kb)) (sf, kb) ls in
+
+  {skill = 1.5; stuff = sf; kb = kb}
+
 
 let price_buy tr ls = comp_price (1.0 /. tr.skill) ls 
 let price_sell tr ls = comp_price tr.skill ls 
 
 let price_buy_ls tr ls = comp_price_ls (1.0 /. tr.skill) ls 
 let price_sell_ls tr ls = comp_price_ls tr.skill ls 
+
+let price_buy_cnt tr ls = comp_price_cnt (1.0 /. tr.skill) ls 
+let price_sell_cnt tr ls = comp_price_cnt tr.skill ls 
+
+
+let print_trader tr = 
+  let print b = Printf.printf "\t%s; Amount = %i\n" (Item.string_of_item b.Item.Cnt.item) b.Item.Cnt.amount in
+  M.iter (fun bc am -> 
+    let b = Item.Cnt.({item = M.find bc tr.kb; amount = am}) in
+    print b
+  ) tr.stuff;
+  Printf.printf "\n%!"
+
 
 let extract bc tr = 
   match get bc tr.stuff, opt_get bc tr.kb with
@@ -77,7 +139,9 @@ let decompose_useless tr =
     
     let prob_keep = 1.0 -. prob_decompose in
 
+    (*
     Printf.printf "prob_keep = %g\n%!" prob_keep;
+    *)
 
     let sf = 
       M.fold ( fun bc amount acc_sf ->
@@ -100,12 +164,22 @@ let decompose_useless tr =
   else
     tr
 
+let barter_no_decomposition sell buy tr = 
+  let p_buy = price_buy_ls tr buy in
+  let p_sell = price_sell_ls tr sell in
+  if p_buy >= p_sell then Some (tr |> exchange sell buy) else None
+
 let barter sell buy tr = 
   let p_buy = price_buy_ls tr buy in
   let p_sell = price_sell_ls tr sell in
   if p_buy >= p_sell then Some (tr |> exchange sell buy |> decompose_useless) else None
 
 let make_offer_ls price_cap num prop tr = 
+ 
+  (*
+  Printf.printf "price cap = %i\n%!" price_cap;
+  *)
+
   let coins_num = get Coll.coin_barcode tr.stuff in
   let coins_bunch =
     match coins_num, opt_get Coll.coin_barcode tr.kb with
@@ -130,8 +204,9 @@ let make_offer_ls price_cap num prop tr =
 
   let factor = 2.0 in
   let inv_factor = 1.0 /. factor in
-  
-  let ls, sf, n = [], tr.stuff, num in
+ 
+  let sf_no_coins = take Coll.coin_barcode coins_num tr.stuff in
+  let ls, sf, n = [], sf_no_coins, num in
   (* 1 *)
   let ls, sf, n = 
     pick 
@@ -160,4 +235,22 @@ let make_offer_ls price_cap num prop tr =
   in
 
   (coins_bunch, ls)
+
+module UC = Common.Unit.Core
+
+let make_default_offer_ls core tr =
+  let price_cap = UC.decompose core |> Resource.numeric in 
+  make_offer_ls price_cap 10 (fun _ -> true) tr
+
+let move_money_from_tr_to_core (core, tr) =
+  let coin = Item.Coll.coin in
+  match extract coin.Item.barcode tr with
+  | Some (u_money_bunch, u_tr) -> 
+    let u_core = 
+      ( match Inv.put_somewhere_bunch u_money_bunch (UC.get_inv core) with
+        | Item.Cnt.MoveBunchSuccess inv' -> UC.upd_inv inv' core
+        | _ -> core )
+    in
+    (u_core, u_tr)
+  | None -> (core, tr)
 

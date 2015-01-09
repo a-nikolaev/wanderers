@@ -199,7 +199,7 @@ let migrate speedup pol g facnum rid =
   done
 
 
-let economics speedup pol g facnum rid =
+let economics astr speedup pol g facnum rid =
   let totpop = fold_lim (fun sum i -> sum + fget g rid i) 0 0 (facnum-1) in
   let res_lat = rget_lat g rid in
     
@@ -253,8 +253,21 @@ let economics speedup pol g facnum rid =
               ) 0 0 (facnum-1) in
             let civil = totpop - noncivil in
             let len = List.length g.G.rm.(rid).RM.cons in
-            if float noncivil > 0.90 *. float totpop || civil < len || civil > 8 + 3 * len then
-            ( let chance = speedup *. 0.10 in
+
+            let cond_to_destroy =
+              match hd.RM.constype with
+              | RM.CMarket -> 
+                  (Random.int 10 = 0) &&
+                    ( 
+                      let actors_num = Org.Astr.get_actors_set_at rid astr |> Org.Sa.cardinal in
+                      actors_num <= 0 || civil < len
+                    )
+              | _ -> float noncivil > 0.90 *. float totpop || civil < len || civil > 8 + 3 * len
+            in
+
+            if cond_to_destroy then
+            ( 
+              let chance = speedup *. 0.10 in
               if Random.float 1.0 < chance then
               ( g.G.rm.(rid) <- RM.({rm with cons = tl});
                 let res_lat = rget_lat g rid in
@@ -284,7 +297,7 @@ let run speedup pol (g, astr) =
     done
   in
   execute growth;
-  execute economics;
+  execute (economics astr);
   execute migrate;
   
   let g_astr' = sim_actors speedup pol (g, astr) in

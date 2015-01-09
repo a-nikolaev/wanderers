@@ -187,6 +187,7 @@ let scenario_meet_a_local pol a opp_core (g,astr) =
   else
     (g, astr)
 
+
 (* Scenario - meet another actor *)
 let scenario_meet_an_actor pol a opp_actor (g,astr) =
   let rid = Actor.get_rid a in
@@ -222,34 +223,21 @@ let scenario_meet_an_actor pol a opp_actor (g,astr) =
         (* move money to Trader *)
         ( match Inv.get_bunch Inv.default_coins_container Item.Cnt.default_coins_slot (UC.get_inv opp_core) with
           | Some (money_bunch, opp_inv) when money_bunch.Item.Cnt.item.barcode = Item.Coll.coin_barcode  ->
-              
+             
+              let opp_core = UC.upd_inv opp_inv opp_core in
               let opp_tr = Trade.exchange [] [money_bunch] opp_tr in
 
               let coin = money_bunch.item in
               
               (* trade *)
-              let u_opp_tr, u_my_core = Simtrade.barter_with opp_tr my_core in
+              let opp_tr, my_core = Simtrade.barter_with opp_tr my_core in
               
               (* put money back *)
-              let u_opp_core, uu_opp_tr = 
-                (* extract money from Trader *)
-                match Trade.extract coin.Item.barcode u_opp_tr with
-                | Some (u_money_bunch, uu_opp_tr) -> 
-
-                  let u_opp_core = 
-                    ( match Inv.put_somewhere_bunch u_money_bunch opp_inv with
-                      | Item.Cnt.MoveBunchSuccess inv' -> UC.upd_inv inv' opp_core
-                      | _ -> opp_core )
-                  in
-
-                  (u_opp_core, uu_opp_tr)
-
-                | None -> (opp_core, u_opp_tr)
-              in
+              let opp_core, opp_tr = Trade.move_money_from_tr_to_core (opp_core, opp_tr) in
 
               (g, astr) 
-              |> update_rid_actor_g_astr rid (a |> Actor.update_core u_my_core)
-              |> update_rid_actor_g_astr rid (opp_actor |> Actor.update_core u_opp_core |> Actor.update_cl (Actor.Merchant uu_opp_tr))
+              |> update_rid_actor_g_astr rid (a |> Actor.update_core my_core)
+              |> update_rid_actor_g_astr rid (opp_actor |> Actor.update_core opp_core |> Actor.update_cl (Actor.Merchant opp_tr))
 
 
           | _ -> (g, astr)

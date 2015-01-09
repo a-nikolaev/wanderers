@@ -45,6 +45,7 @@ SOURCES=$(WIN_SOURCE) $(SDL_SOURCE) $(GL_SOURCE) \
 	$(SRCDIR)/top.ml \
 	$(SRCDIR)/simobj.ml \
   $(SRCDIR)/console.ml \
+  $(SRCDIR)/barter.ml \
   $(SRCDIR)/state.ml \
 	$(SRCDIR)/sim.ml \
 	$(SRCDIR)/grafx.ml \

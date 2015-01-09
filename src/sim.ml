@@ -773,7 +773,7 @@ let run dt s =
   in
 
   match s.cm with
-  | CtrlM.WaitInput _ | CtrlM.Target _ | CtrlM.Look _ | CtrlM.Inventory _ | CtrlM.OpenAtlas _ | CtrlM.Console _ ->
+  | CtrlM.WaitInput _ | CtrlM.Target _ | CtrlM.Look _ | CtrlM.Inventory _ | CtrlM.Barter _ | CtrlM.OpenAtlas _ | CtrlM.Console _ ->
       (* how frequently the map is updated *)
       let step_dt = 10.0 in
       let number = ( s.State.top_rem_dt /. step_dt ) |> floor |> int_of_float  in
