@@ -111,7 +111,7 @@ let make_variety n =
   let prop = Array.init n (fun _ -> make_fac_prop (sp())) in
   *)
   let prop_ls = [
-    (Humanoid, 0); (Domestic, 0); (Humanoid, 1); (Undead, 0); (Undead, 1); 
+    (Domestic, 0); (Domestic, 0); (Humanoid, 1); (Undead, 0); (Undead, 1); 
     (Humanoid, 2); (Wildlife, 0); (Humanoid, 3); (Undead, 2); (Undead, 3); 
     (Humanoid, 4); (Swampy, 0)] in
   assert(List.length prop_ls = n); 
