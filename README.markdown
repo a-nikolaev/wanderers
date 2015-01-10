@@ -27,7 +27,7 @@ many of the characteristic features of the game are already implemented.
 
 Half-done:     
 
-  * Economics of the world.     
+  * Economics of the world. Merchants and trade.
   * Fully functional player-like NPC actors and their hierarchical organizations.   
   * Special attacking techniques for some weapons (such as long swords, spears, mauls etc.).   
   * Complex overworld topology.
@@ -36,7 +36,7 @@ Not implemented yet:
 
   * Spell casting.   
   * Rumors, information spreading, reputation.    
-  * Shops. More interesting NPCs and locations. More complex world topology.   
+  * More interesting NPCs and locations. More complex world topology.   
   * Apocalyptic events, villains, and winning conditions.    
 
 ### How to build
@@ -56,7 +56,7 @@ Make sure you have your SDL1.2 and OpenGL libraries installed. Then just execute
 `Space` Wait   
 `i` or `Enter` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
-`v` Interaction mode (`v` or `Enter` to open/close doors or barter with a merchant, `f` for ranged attack, `Esc` to cancel)   
+`v` Interaction mode (`v` or `Enter` to open/close doors or barter, `f` for ranged attack)   
 `m` Map (`arrow keys` and `<`, `>` to move, `Esc` to cancel)    
 `<` `>` Use stairs   
 `+` `-` Faster or slower movement speed    
@@ -73,11 +73,11 @@ difference between the left and the right hand).
 ![](http://i.imgur.com/8jVzEue.png)
 
 #### Merchants and barter
-A merchant can be identified by the cloak-like symbol on their shoulder. 
+A merchant can be identified by the **cloak-like symbol on their shoulder**. 
 They often can be found in the regions with markets (such regions are marked by a golden ring on the map),
 Small nations may have no or very few merchants. 
 
-![](http://i.imgur.com/8ho8MsR.png)
+![](http://i.imgur.com/jtMSVAW.png)
 
 To trade with a merchant, stand next to him or her, switch to the interation mode `v`, and
 press `v` or `Enter` again. The barter mode works the same way as the inventory mode.
