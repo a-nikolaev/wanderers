@@ -102,7 +102,7 @@ let init reg s =
   Trade.print_trader s.tr;
   *)
 
-  let ui_el_i, ci = let rec search i = match s.ui_el.(i) with C (ci,_) -> (i, ci) | _ -> search (i+1) in search 0 in
+  let ui_el_i, ci = let rec search i = match s.ui_el.(i) with C (ci,_) when ci=s.tr_merchant_ci -> (i, ci) | _ -> search (i+1) in search 0 in
   { s = s;
     ui_el_i; 
     ci; 

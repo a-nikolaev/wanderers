@@ -55,6 +55,7 @@ let get_random_unit_core pol rm =
         failwith "Org.random_unit_core: bad number of units"
     in
     let fac = next (Random.int total) 0 in
+    (* Printf.printf "-> faction = %i\n%!" fac; *)
     let res = rm.RM.lat.Mov.res in
     match any_from_ls pol.Pol.prop.(fac).Pol.speciesls with 
       Some sp -> Some (Unit.Core.make_res fac sp None res)
@@ -110,6 +111,7 @@ module Ma = Map.Make(struct type t = Actor.id let compare = compare end)
 module Sa = Set.Make(struct type t = Actor.id let compare = compare end)
 
 module Astr = struct
+  (* Statistics of how many actors of certain kind (wcl) is there *)
   module Mwcl = Map.Make(struct type t = Actor.wcl let compare = compare end)
   type stats = {mwcl: int Mwcl.t}
   let stats_empty = {mwcl = Mwcl.empty}
@@ -217,10 +219,10 @@ module Astr = struct
       Some _ -> (g, astr)
     | None ->
         let facnum = fnum g in
-        let total_pop = fold_lim (fun sum i -> sum + fget g rid i) 0 0 (facnum-1) in
+        let total_pop_lat = fold_lim (fun sum i -> sum + fget_lat g rid i) 0 0 (facnum-1) in
         let total_actors = get_actors_num_at rid astr in
-        if total_actors + total_pop > 0 && total_pop > total_actors && 
-          Random.int (total_pop) > total_actors then
+        if total_pop_lat <= 0 || (Random.int (total_pop_lat) > total_actors) 
+        then
           (g, astr)
         else
         ( match get_random_unit_core pol (g.G.rm.(rid)) with
@@ -247,6 +249,9 @@ module Astr = struct
 
               let a = Actor.make_from_core rid core cl in
               let faction = Unit.Core.get_faction core in
+
+              Printf.printf "faction = %i\n%!" faction;
+
               let pop_lat = fget_lat g rid faction in
               fset_lat g rid faction (max 0 (pop_lat-1));
               (g, update a astr)

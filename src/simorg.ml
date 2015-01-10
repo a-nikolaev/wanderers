@@ -266,7 +266,7 @@ let sample_encounter a (g,astr) (x_lat, x_act, x_exit, x_nothing) =
   let p_nothing = float num_nothing *. x_nothing in
 
   (* choose one event *)
-  let sum = p_lat +. p_act +. p_exit +. x_nothing in
+  let sum = p_lat +. p_act +. p_exit +. p_nothing in
   if sum > 0.00001 then
   ( let prob_ls = 
     [ Enc_Local, p_lat /. sum; 
@@ -338,18 +338,26 @@ let sim_merchant pol a (g, astr) =
           (* found an exit *)
           let rid_has_market rid = RM.has_market g.G.rm.(rid) in
 
+          let eval_friendliness rid =
+            let fac_self = Unit.Core.get_fac (Org.Actor.get_core a) in
+            let facnum = pol.Pol.facnum in
+            fold_lim (fun sum fac -> sum +. float (fget g rid fac) *. (pol.Pol.rel_like.(fac_self).(fac)) ) 0.0 0 (facnum-1)
+          in
+
           if rid_has_market rid then
             (* there is a market - stay *)
             (g, astr)
           else
             (* no market - leave *)
             let nb_rid_ls = G.get_only_nb_rid_ls rid g in
-            let nb_rid_ls =
+            let opt_rid =
               match List.filter rid_has_market nb_rid_ls with
-              | [] -> nb_rid_ls
-              | ls -> ls
+              | [] -> any_from_ls nb_rid_ls
+              | ls -> 
+                  let ls = ls |> List.map (fun rid -> (rid, eval_friendliness rid)) |> List.filter (fun (_,v) -> v > 0.0) in
+                  if ls <> [] then Some (any_from_rate_ls ls) else None
             in
-            ( match any_from_ls nb_rid_ls with
+            ( match opt_rid with
               | Some nb_rid ->
                   (g, astr) |> transfer_actor a nb_rid 
               | None ->
@@ -376,10 +384,25 @@ let run accept_prob pol (geo, astr) =
   (*
   Printf.printf "actors: %i\n%!" num;
   *)
+
+  (* count factions *)
+  let arr_a = Array.make pol.Pol.facnum 0 in
+  let arr_m = Array.make pol.Pol.facnum 0 in
+  Ma.iter (fun aid a -> 
+    let fac = a |> Actor.get_core |> Unit.Core.get_faction in
+    match Actor.get_wcl a with
+    | Actor.WC_Adventurer -> arr_a.(fac) <- arr_a.(fac) + 1
+    | _ -> arr_m.(fac) <- arr_m.(fac) + 1
+  ) astr.ma;
+  for fac = 0 to pol.Pol.facnum-1 do
+    Printf.printf "%i.\ta=%i\tm=%i\n%!" fac arr_a.(fac) arr_m.(fac)
+  done;
+  Printf.printf "\n";
+
   let simnum = round_prob (float num *. accept_prob) in
 
   fold_lim (fun ((acc_geo, acc_astr) as acc) _ -> 
     match Astr.get_random acc_astr with 
       Some a -> sim_one pol a acc 
     | None -> acc
-  ) (geo, astr) 0 simnum
+  ) (geo, astr) 1 simnum

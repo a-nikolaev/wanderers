@@ -193,6 +193,10 @@ let make_offer_ls price_cap num prop tr =
         match opt_get bc tr.kb with
         | Some item -> 
             if prop item && Random.float 1.0 <= probability item then 
+              let amount = match item.Item.stackable with
+              | Some n -> min n amount
+              | None -> 1
+              in
               (Cnt.({item; amount}) :: ls, take bc 1 sf, n-1) 
             else 
               (ls, sf, n)

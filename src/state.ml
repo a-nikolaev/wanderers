@@ -444,7 +444,7 @@ let respond s =
                           C (1, "1."); C (2, "2."); Info; 
                           Lbl [Text "3.to Sell ("; TrBuyPrice 3; Text ")"]; Barter.C (3, ""); 
                           Lbl [Text "4.to Buy  ("; TrSellPrice 4; Text ")"]; Barter.C (4, ""); 
-                          Lbl [Text "5.Merchant's counter"]; Barter.C (5, "") 
+                          Lbl [Text "5.Merchant's counter"]; Barter.C (5, "");
                         |]
                     })
                   in

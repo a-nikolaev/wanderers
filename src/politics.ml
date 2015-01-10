@@ -114,7 +114,7 @@ let make_variety n =
     (Humanoid, 0); (Domestic, 0); (Humanoid, 1); (Undead, 0); (Undead, 1); 
     (Humanoid, 2); (Wildlife, 0); (Humanoid, 3); (Undead, 2); (Undead, 3); 
     (Humanoid, 4); (Swampy, 0)] in
-  assert(List.length prop_ls >= n); 
+  assert(List.length prop_ls = n); 
   let prop = Array.of_list (List.map (fun (sp,var) -> make_fac_prop sp var) prop_ls) in
   
   let rel_like = Array.init n (fun i -> Array.make n 0.) in
