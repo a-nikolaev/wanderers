@@ -77,7 +77,7 @@ A merchant can be identified by the **cloak-like symbol on their shoulder**.
 They often can be found in the regions with markets (such regions are marked by a golden ring on the map),
 Small nations may have no or very few merchants. 
 
-![](http://i.imgur.com/QNfEKOf.png)
+![](http://i.imgur.com/wGMhzY2.png)
 
 To trade with a merchant, stand next to him or her, switch to the interation mode `v`, and
 press `v` or `Enter` again. The barter mode works the same way as the inventory mode.
