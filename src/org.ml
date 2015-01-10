@@ -50,7 +50,7 @@ let get_random_unit_core pol rm =
     let rec next v fac = 
       if fac < facnum then 
       ( let x = v - fac_arr.(fac) in
-        if x <= 0 then fac else next x (fac+1) )
+        if x < 0 then fac else next x (fac+1) )
       else
         failwith "Org.random_unit_core: bad number of units"
     in
@@ -250,7 +250,7 @@ module Astr = struct
               let a = Actor.make_from_core rid core cl in
               let faction = Unit.Core.get_faction core in
 
-              Printf.printf "faction = %i\n%!" faction;
+              (* Printf.printf "faction = %i\n%!" faction; *)
 
               let pop_lat = fget_lat g rid faction in
               fset_lat g rid faction (max 0 (pop_lat-1));

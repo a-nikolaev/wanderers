@@ -56,13 +56,14 @@ Make sure you have your SDL1.2 and OpenGL libraries installed. Then just execute
 `Space` Wait   
 `i` or `Enter` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
 `f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
-`v` Look mode (`v` or `Enter` to open/close doors, `f` for ranged attack, `Esc` to cancel)   
-`m` Map (arrow keys and `<`, `>` to move, `Esc` to cancel)    
+`v` Interaction mode (`v` or `Enter` to open/close doors or barter with a merchant, `f` for ranged attack, `Esc` to cancel)   
+`m` Map (`arrow keys` and `<`, `>` to move, `Esc` to cancel)    
 `<` `>` Use stairs   
 `+` `-` Faster or slower movement speed    
 `Esc` or `q` Cancel   
 `Ctrl+q` Save and quit   
 
+#### Inventory
 To pick up an item, open the inventory `i`, choose the item with the arrow keys,
 then press `1` to put it on, `2` to put it in the inventory, or `0` to drop it on the ground.
 Press `Esc` or `q` to close the inventory. There are 5 specialized slots in the equipment 
@@ -70,6 +71,17 @@ container: 1) left hand, 2) torso, 3) right hand, 4) head, 5) slot for coins. (T
 difference between the left and the right hand).
 
 ![](http://i.imgur.com/8jVzEue.png)
+
+#### Merchants and barter
+A merchant can be identified by the cloak-like symbol on their shoulder. 
+They often can be found in the regions with markets (such regions are marked by a golden ring on the map),
+Small nations may have no or very few merchants. 
+
+![](http://i.imgur.com/8ho8MsR.png)
+
+To trade with a merchant, stand next to him or her, switch to the interation mode `v`, and
+press `v` or `Enter` again. The barter mode works the same way as the inventory mode.
+To confirm your purchase, press `Enter`.
 
 ### Tips for new players
 When you start playing, first, take a look at your `CNS` (Constitution).

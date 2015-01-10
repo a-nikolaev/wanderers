@@ -386,18 +386,20 @@ let run accept_prob pol (geo, astr) =
   *)
 
   (* count factions *)
-  let arr_a = Array.make pol.Pol.facnum 0 in
-  let arr_m = Array.make pol.Pol.facnum 0 in
-  Ma.iter (fun aid a -> 
-    let fac = a |> Actor.get_core |> Unit.Core.get_faction in
-    match Actor.get_wcl a with
-    | Actor.WC_Adventurer -> arr_a.(fac) <- arr_a.(fac) + 1
-    | _ -> arr_m.(fac) <- arr_m.(fac) + 1
-  ) astr.ma;
-  for fac = 0 to pol.Pol.facnum-1 do
-    Printf.printf "%i.\ta=%i\tm=%i\n%!" fac arr_a.(fac) arr_m.(fac)
-  done;
-  Printf.printf "\n";
+  if false then
+  ( let arr_a = Array.make pol.Pol.facnum 0 in
+    let arr_m = Array.make pol.Pol.facnum 0 in
+    Ma.iter (fun aid a -> 
+      let fac = a |> Actor.get_core |> Unit.Core.get_faction in
+      match Actor.get_wcl a with
+      | Actor.WC_Adventurer -> arr_a.(fac) <- arr_a.(fac) + 1
+      | _ -> arr_m.(fac) <- arr_m.(fac) + 1
+    ) astr.ma;
+    for fac = 0 to pol.Pol.facnum-1 do
+      Printf.printf "%i.\ta=%i\tm=%i\n%!" fac arr_a.(fac) arr_m.(fac)
+    done;
+    Printf.printf "\n";
+  );
 
   let simnum = round_prob (float num *. accept_prob) in
 
