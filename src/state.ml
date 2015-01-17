@@ -389,7 +389,7 @@ let respond s =
                   let mtr, mu = 
                     let inv = Unit.get_inv mu in
                     match Inv.get_bunch Inv.default_coins_container Item.Cnt.default_coins_slot inv with
-                    | Some (money_bunch, inv2) when money_bunch.Item.Cnt.item.barcode = Item.Coll.coin_barcode  ->
+                    | Some (money_bunch, inv2) when money_bunch.Item.Cnt.item.Item.barcode = Item.Coll.coin_barcode  ->
                         let mtr = Trade.exchange [] [money_bunch] mtr in
                         let mu = Unit.upd_inv inv2 mu in
                         (mtr, mu)                        
@@ -714,6 +714,10 @@ let respond s =
                           ns
                       | _ -> {s with cm = prev_cm}
                     )
+                | "map" ->
+                    let new_atlas = Atlas.update_all s.pol s.geo s.atlas in
+                    {s with atlas = new_atlas; cm = prev_cm}
+                    
                 | _ -> {s with cm = prev_cm}
               )
             in

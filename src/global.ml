@@ -178,6 +178,7 @@ module Atlas = struct
     )
     else mrid
 
+  (* compute map of all visible rids *)
   let comp_visible rid geo =
     let z,loc = geo.G.loc.(rid) in
     (* no vision in dungeons *)
@@ -185,6 +186,13 @@ module Atlas = struct
       explore geo rid 0 Mrid.empty 
     else
       explore geo rid (biome_radius geo.G.rm.(rid).RM.biome) Mrid.empty 
+  
+  (* map of all rids *)
+  let comp_all rid geo =
+    fold_lim (fun acc rid ->
+      Mrid.add rid 1 acc
+    ) Mrid.empty 0 (Array.length geo.G.rm - 1)
+
       
   let comp_markls pol rm nb =
     let stairs_markls =
@@ -211,16 +219,20 @@ module Atlas = struct
         stairs_markls
     in
     stairs_markls
-
-  let update pol geo atlas = 
+  
+  let update_generic comp_func pol geo atlas = 
     let currid = geo.G.currid in
-    let visible = comp_visible currid geo in
+    let visible = comp_func currid geo in
     Mrid.iter (fun rid _ ->
       atlas.rmp.(rid) <- 
         Some {rid=rid; rloc = geo.G.loc.(rid); biome = geo.G.rm.(rid).RM.biome; 
           markls = comp_markls pol geo.G.rm.(rid) geo.G.nb.(rid)}
     ) visible;
     {atlas with visible; currid; curloc = geo.G.loc.(currid)}
+
+  let update = update_generic comp_visible 
+  
+  let update_all = update_generic comp_all 
 
   let make pol geo =
     let rmnum = Array.length geo.G.rm in
