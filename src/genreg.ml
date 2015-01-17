@@ -304,6 +304,65 @@ let gen pol edges_func rid rm astr =
         build_dungeon cons charmap_inv_cave Tile.CaveWall w h (w-2) (h-2)
     | _ -> Area.init w h (fun _ _ -> any_from_prob_ls prob_ls ), (0,0) in
 
+
+  (* add N, S, W, E exits *)
+  List.iter 
+    ( fun (dir, loc0, dloc) ->
+        if edges_func dir then
+        ( let not_a_floor loc = Area.is_within area loc && not ((Area.get area loc |> Tile.classify) = Tile.CFloor) in
+          let rec repeat loc =
+            if not_a_floor loc then
+            ( Area.set area loc ground_tile;
+              
+              if (List.for_all (fun d -> (d++dloc = (0,0)) || not_a_floor (loc++d)) [(1,0); (-1,0); (0,1); (0,-1)]) then
+                repeat (loc ++ dloc)
+            )
+            else 
+              ()
+          in
+          repeat loc0
+        )
+    ) 
+    ( let x = Area.w area - 1 in let y = Area.h area - 1 in 
+      [ (North, (x/2, y), ( 0,-1));
+        (South, (x/2, 0), ( 0, 1));
+        (East,  (x, y/2), (-1, 0));
+        (West,  (0, y/2), ( 1, 0));
+      ] 
+    );
+  
+  (* block the edges *)
+  List.iter 
+    ( fun (dir, x0, y0, x1, y1, dx, dy) ->
+        if not (edges_func dir) then 
+        ( (* if no exit, block the edge with a wall *)
+          match rm.RM.biome with
+          | RM.Dungeon | RM.Cave -> ()
+          | _ -> 
+              for x = x0 to x1 do
+                for y = y0 to y1 do
+                  for i = 0 to 0 + Random.int 2 + Random.int 2 + Random.int 2 do
+                    let loc = (x + i*dx, y + i*dy) in
+                    let t = Area.get area loc in
+                    if t |> Tile.classify |> Tile.can_walk then
+                    ( match Random.int (i+1) with
+                      | 0 -> Area.set area (x + i*dx,y + i*dy) (Tile.BigRock (Random.int 4));
+                      | 1 -> Area.set area (x + i*dx,y + i*dy) (if Random.int 2 = 0 then Tile.Rock1 else Tile.Rock2);
+                      | _ -> Area.set area (x + i*dx,y + i*dy) (if Random.int 2 = 0 then Tile.Tree2 else Tile.Tree2);
+                    )
+                  done
+                done
+              done
+        )
+    )
+    ( let x = Area.w area - 1 in let y = Area.h area - 1 in 
+      [ North, 0, y, x, y, 0, -1;
+        South, 0, 0, x, 0, 0, 1;
+        East, x, 0, x, y, -1, 0;
+        West, 0, 0, 0, y, 1, 0;
+      ]
+    );
+  
   (* add constructions *)
   (* add_cons area rm; *)
   let zones =
@@ -326,31 +385,6 @@ let gen pol edges_func rid rm astr =
 
     zones
   in
-
-  (* add N, S, W, E exits *)
-  List.iter 
-    ( fun (dir, loc0, dloc) ->
-        if edges_func dir then
-          let not_a_floor loc = Area.is_within area loc && not ((Area.get area loc |> Tile.classify) = Tile.CFloor) in
-          let rec repeat loc =
-            if not_a_floor loc then
-            ( Area.set area loc ground_tile;
-              
-              if (List.for_all (fun d -> (d++dloc = (0,0)) || not_a_floor (loc++d)) [(1,0); (-1,0); (0,1); (0,-1)]) then
-                repeat (loc ++ dloc)
-            )
-            else 
-              ()
-          in
-          repeat loc0
-    ) 
-    ( let x = Area.w area - 1 in let y = Area.h area - 1 in 
-      [ (North, (x/2, y), ( 0,-1));
-        (South, (x/2, 0), ( 0, 1));
-        (East,  (x, y/2), (-1, 0));
-        (West,  (0, y/2), ( 1, 0));
-      ] 
-    );
 
   (* add stairs *)
   let obj = Obj.empty (Area.w area) (Area.h area) in

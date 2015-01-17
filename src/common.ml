@@ -42,7 +42,7 @@ end
 module Tile = struct
   type door_state = IsOpen | IsClosed
 
-  type t = Grass | Wall | Tree1 | Tree2 | Rock1 | Rock2
+  type t = Grass | Wall | Tree1 | Tree2 | Rock1 | Rock2 | BigRock of int
     | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | Door of door_state | MarketStand of int
     | DungeonFloor | DungeonWall | DungeonDoor of door_state
@@ -63,7 +63,7 @@ module Tile = struct
   let classify = function
     | Grass | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | DungeonFloor | CaveFloor -> CFloor
-    | Wall | Tree1 | Tree2 | Rock1 | Rock2 | DungeonWall | CaveWall | MarketStand _ -> CWall
+    | Wall | Tree1 | Tree2 | Rock1 | Rock2 | BigRock _ | DungeonWall | CaveWall | MarketStand _ -> CWall
     | Door s | DungeonDoor s | CaveDoor s -> CDoor s
 
   let is_a_door = function

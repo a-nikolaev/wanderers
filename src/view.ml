@@ -680,6 +680,7 @@ let draw_area_tile_obstacles t reg rm vision (i,j) =
           | Tile.Tree2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (1,3) else (1,5))
           | Tile.Rock1 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (2,3) else (2,5))
           | Tile.Rock2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (3,3) else (3,5))
+          | Tile.BigRock x -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (4 + x,3) else (4 + x,5))
           | Tile.DungeonWall -> draw_obj (0,7) 
           | Tile.CaveWall -> draw_obj (0,11) 
           | _ -> () );
