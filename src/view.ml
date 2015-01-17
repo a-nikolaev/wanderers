@@ -278,6 +278,17 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
   
   set_color 0.1 0.1 0.1 1.0;
   iter ( fun loc -> Draw.draw_sml_tile (Pos.atlas) gr (scrloc loc) );
+  
+  (* below *)
+  set_color 0.30 0.05 0.5 0.5;
+  Array.iter ( function 
+    | Some rmp ->
+        let z, ((x,y) as loc) = rmp.Atlas.rloc in
+        if z = cursor_z - 1 && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
+          Draw.draw_sml_tile (Pos.atlas ++ (7,0)) gr (scrloc loc) 
+    | _ -> ()
+  ) atlas.Atlas.rmp;
+  
 
   (* shadowed *)
   Array.iter ( function 
@@ -288,6 +299,17 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
 
   (* currently visible *)
   Atlas.iter_visible (fun rmp -> draw_rmp 1.0 1.0 rmp) atlas;
+  
+  (* above *)
+  set_color 0.5 0.5 0.5 0.3;
+  Array.iter ( function 
+    | Some rmp ->
+        let z, ((x,y) as loc) = rmp.Atlas.rloc in
+        if z = cursor_z + 1 && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
+          Draw.draw_sml_tile (Pos.atlas ++ (8,0)) gr (scrloc loc) 
+    | _ -> ()
+  ) atlas.Atlas.rmp;
+   
   
   (* mark player location *)
   if player_z = cursor_z && abs (player_x-cursor_x) < maxr_x && abs (player_y-cursor_y) < maxr_y then 
