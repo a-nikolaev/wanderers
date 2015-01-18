@@ -92,6 +92,38 @@ let gen_rnd_alt w h steps =
     ) 
     z 1 steps
 
+let gen_rnd_alt_2 w h steps =  
+
+  let get_w_h steps_remain =
+    let zoom = power 2 steps_remain in 
+    let ww = (w + zoom-1) / zoom in
+    let hh = (h + zoom-1) / zoom in
+    (ww,hh) in
+
+  let (ww,hh) = get_w_h steps in
+
+  let z = Array.make_matrix ww hh 0.0 in
+  for i = 0 to ww-1 do
+    for j = 0 to hh-1 do
+      let boundary = 
+        let dist2 = List.fold_left min (ww*ww + hh*hh) [i*i; j*j; (ww-1-i)*(ww-1-i); (hh-1-j)*(hh-1-j)] in 
+        exp (-. 1.2 *. float dist2 )
+      in
+      z.(i).(j) <- ((Random.float 600.0) +. 200.0) *. boundary 
+    done
+  done;
+  add_fun z (fun () -> (Random.float 435.0)**1.19 );
+  
+  fold_lim 
+    (fun zz step -> 
+      let w,h = get_w_h (steps-step) in 
+      let zzz = rescale zz w h in
+      add_fun zzz (fun () -> Random.float 160.0 -. 80.0);
+      zzz
+    ) 
+    z 1 steps
+
+
 type intermediate = 
   (RM.t array) * (* rm *) 
   (region_loc array) * (* loc *)
@@ -383,7 +415,7 @@ module Cube = struct
       else if x > 450 then 
         ( if frst > 600 && x < 550 then Some RM.ForestMnt 
           else Some RM.Mnt )
-      else if x > 150 then 
+      else if x > 120 then 
         ( if frst > 600 then Some RM.DeepForest 
           else if frst > 400 then Some RM.Forest
           else Some RM.Plains )
@@ -540,7 +572,11 @@ module Cube = struct
           |> List.filter (fun dxyz -> is_inside_cc (dxyz +++ src))
           |> List.map 
               (fun dxyz -> 
-                let propensity = (diff %%% dxyz + 6*len/5) |> (fun x -> if x < 0 then 0 else x) |> float_of_int in
+                let propensity = 
+                  let v = ((diff +++ (0,0,len/3)) %%% dxyz + 7*len/5) in
+                  let fv = v |> (fun x -> if x < 0 then 0 else x) |> float_of_int in
+                  fv**1.3
+                in
                 (dxyz, propensity)
               )
         in
@@ -573,6 +609,18 @@ module Cube = struct
     | Some _, None -> (b, cc, Ml.remove lbl2 m)
     | None, None -> (b, cc, m |> Ml.remove lbl1 |> Ml.remove lbl2)
     | Some xyz1, Some xyz2 ->
+
+        (* try to sampel two points close to each other *)
+        let len (a,b,c) = abs a + abs b + abs c in
+        
+        let xyz1, xyz2 = 
+          fold_lim (fun ((acc1, acc2) as acc) _ -> 
+            match sc_sample s1, sc_sample s2 with
+            | Some p1, Some p2 when len (p1 --- p2) < len (acc1 --- acc2) -> (p1, p2)
+            | _ -> acc 
+          ) 
+          (xyz1, xyz2) 1 10 
+        in
        
         let condition_to_stop (b,cc,m) nxyz1 nxyz2 = (not (Ml.mem lbl1 m)) || (not (Ml.mem lbl2 m)) in
 
@@ -590,10 +638,21 @@ module Cube = struct
     let rec repeat (b, cc, m) =
       match ml_sample_two m with
       | Some ((lbl1, s1), (lbl2, s2)) ->
-          Printf.printf "(%i, %i)\n" lbl1 lbl2;
-          (* if 2 connected components exist *)
-          let b_cc_m = connect (b, cc, m) (lbl1, s1) (lbl2, s2) in
-          repeat b_cc_m
+          
+          (* we prefer to connect big components *)
+          let prob_consider = 
+            let area = Array.length cc * Array.length cc.(0) in
+            float (Sc.cardinal s1 + Sc.cardinal s2) /. float area
+          in
+
+          if Random.float 1.0 < prob_consider then
+          ( Printf.printf "(%i, %i)\n" lbl1 lbl2;
+            (* if 2 connected components exist *)
+            let b_cc_m = connect (b, cc, m) (lbl1, s1) (lbl2, s2) in
+            repeat b_cc_m
+          )
+          else
+            repeat (b,cc,m)
       | None -> 
           (* otherwise *)
           (b, cc, m)
@@ -686,7 +745,7 @@ module Cube = struct
 
 
   let generate w h depth facnum =
-    let altitude = gen_rnd_alt w h 2 in
+    let altitude = gen_rnd_alt_2 w h 2 in
     let forestation = gen_rnd_alt w h 2 in
     let b_cc_m = initial w h depth altitude forestation in
     let b_cc_m = connect_everything b_cc_m in

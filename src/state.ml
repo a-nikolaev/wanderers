@@ -88,8 +88,8 @@ type t =
 
 let make w h debug = 
   let facnum = default_factions_number in
-  let geo_w = 35 in
-  let geo_h = 35 in
+  let geo_w = 45 in
+  let geo_h = 45 in
   let pol = Politics.make_variety facnum in
   let geo = Genmap.Cube.generate geo_w geo_h 20 facnum in
   let astr = Org.Astr.make_empty (Array.length geo.G.rm) in
