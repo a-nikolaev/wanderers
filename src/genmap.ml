@@ -304,7 +304,6 @@ let make_geo w h facnum =
 
     let id_cube = Array.init xlim (fun i -> Array.init ylim (fun j -> Array.init zlim (fun k -> None ))) in
     Array.iteri (fun id (i,j,k) -> id_cube.(i).(j).(k) <- Some id) ijks_arr;
-    let len = Array.length ijks_arr in
 
     let nbs_arr =
       Array.mapi (fun id (i,j,k) ->  
@@ -358,3 +357,340 @@ let make_geo w h facnum =
   let prio = Prio.make() in
   let currid = 0 in
   {currid; prio; rm; loc; nb}
+
+
+module Cube = struct
+
+  (* set of coords *)
+  type lbl = int
+  type coord = int*int*int
+  module Sc = Set.Make (struct type t = coord let compare = compare end)
+  module Ml = Map.Make (struct type t = lbl let compare = compare end)
+
+  let (+++) (a,b,c) (d,e,f) = (a+d, b+e, c+f)
+  let (---) (a,b,c) (d,e,f) = (a-d, b-e, c-f)
+  (* scalar product *)
+  let (%%%) (a,b,c) (d,e,f) = (a*d + b*e + c*f)
+
+  let get a (x,y,z) = a.(x).(y).(z)
+  let set a (x,y,z) v = a.(x).(y).(z) <- v
+
+
+  let initial w h depth altitude forestation =
+    let map_alt_to_biome x frst = 
+      if x > 730 then None
+      else if x > 650 then Some RM.SnowMnt
+      else if x > 450 then 
+        ( if frst > 600 && x < 550 then Some RM.ForestMnt 
+          else Some RM.Mnt )
+      else if x > 150 then 
+        ( if frst > 600 then Some RM.DeepForest 
+          else if frst > 400 then Some RM.Forest
+          else Some RM.Plains )
+      else Some RM.Swamp in
+
+    (* biomes *)
+    let b = Array.init w (fun _ -> Array.init h (fun _ -> Array.make depth None)) in
+    (* connected components *)
+    let cc = Array.init w (fun _ -> Array.init h (fun _ -> Array.make depth 0)) in
+
+    for x = 0 to w-1 do
+      for y = 0 to h-1 do
+        b.(x).(y).(0) <- map_alt_to_biome (int_of_float altitude.(x).(y)) (int_of_float forestation.(x).(y))
+      done
+    done;
+
+    let is_inside (x,y,z) = x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < depth in
+
+    let is_ok b cc xyz = is_inside xyz && get cc xyz = 0 && get b xyz <> None in
+
+    let rec init_ccs b cc xyz lbl s = 
+      if is_ok b cc xyz then
+      ( set cc xyz lbl;
+        let s2 = Sc.add xyz s in
+        List.fold_left (fun acc_s dxyz ->
+            init_ccs b cc (xyz +++ dxyz) lbl acc_s
+          )
+          s2 
+          [(1,0,0); (-1,0,0); (0,1,0); (0,-1,0)]
+      )
+      else 
+        s
+    in
+  
+    let rec fill_cc b cc ((x,y,z) as xyz) lbl m =
+      if x >= w then fill_cc b cc (0, y+1, z) lbl m
+      else if y >= h then m
+      else 
+      ( if is_ok b cc xyz then
+          let s = init_ccs b cc (x,y,z) lbl Sc.empty in
+          let um = Ml.add lbl s m in
+          fill_cc b cc (x+1,y,z) (lbl+1) um
+        else
+          fill_cc b cc (x+1,y,z) (lbl) m
+      )
+    in
+
+    let lbl_map = fill_cc b cc (0,0,0) 1 Ml.empty in
+
+    (b, cc, lbl_map)
+
+
+  (* make an is_inside function for a given 3-dim array *)
+  let is_inside arr =
+    let w = Array.length arr in 
+    let h = Array.length arr.(0) in 
+    let depth = Array.length arr.(0).(0) in 
+    (fun (x,y,z) -> x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < depth) 
+ 
+  (* sample from a coord set *)
+  let sc_sample s =
+    let c = Sc.cardinal s in
+    if c > 0 then
+      let x = Random.int c in
+      let _, res = Sc.fold (fun coord (i,acc) -> if i = x then (i+1, coord) else (i+1, acc)) s (0, (Sc.choose s)) in
+      Some res
+    else
+      None
+
+  (* sample from a label map *)
+  let ml_sample m =
+    let c = Ml.cardinal m in
+    if c > 0 then
+      let x = Random.int c in
+      let _, res = Ml.fold (fun lbl s (i,acc) -> if i = x then (i+1, (lbl, s)) else (i+1, acc)) m (0, (0, Sc.empty)) in
+      Some res
+    else
+      None
+
+  (* sample two from a label map *)
+  let ml_sample_two m = 
+    let c = Ml.cardinal m in
+    if c > 1 then
+      let x1 = Random.int c in
+      let x2 = let z = Random.int c in if z <> x1 then z else if z+1 < c then z+1 else z-1 in
+      let _, res = Ml.fold (fun lbl s (i,(acc1,acc2)) -> 
+          let accs = if i = x1 then ((lbl, s), acc2) else if i = x2 then (acc1, (lbl, s)) else (acc1, acc2) in
+          (i+1, accs)
+        )
+        m ( 0, ((0, Sc.empty), (0, Sc.empty)) ) 
+      in
+      Some res
+    else
+      None
+
+  (* substitute labels (joining two connected components)  *)
+  let subst_lbl lbl_old lbl_new (b, cc, m) =
+    let s_old = Ml.find lbl_old m in
+    let s_new = Ml.find lbl_new m in
+    for x = 0 to Array.length cc - 1 do
+      for y = 0 to Array.length cc.(0) - 1 do
+        for z = 0 to Array.length cc.(0).(0) - 1 do
+          let xyz = (x,y,z) in
+          if get cc xyz = lbl_old then set cc xyz lbl_new
+        done
+      done
+    done;
+    let um = m |> Ml.remove lbl_old |> Ml.add lbl_new (Sc.union s_old s_new) in
+    (b, cc, um)
+
+  (* look at the neighbors of a newly digged region and update the cube data, joining some connected components if needed *)
+  let process_new_xyz (b, cc, m) ((x,y,z) as xyz) =
+    let is_inside_cc = is_inside cc in
+    let lbl = get cc xyz in
+    List.fold_left (fun acc dxyz ->
+        let nxyz = xyz +++ dxyz in
+        if is_inside_cc nxyz then
+        ( let nlbl = get cc nxyz in
+          if nlbl <> lbl && nlbl <> 0 then
+            subst_lbl nlbl lbl acc
+          else
+            acc
+        )
+        else
+          acc
+      )
+      (b, cc, m)
+      [ (1,0,0); (-1,0,0); (0,1,0); (0,-1,0); (0,0,1); (0,0,-1) ]
+  
+  let dig_at_xyz (b, cc, m) xyz lbl =
+
+    let x,y,z = xyz in
+    Printf.printf "dig at (%i,%i,%i)\n%!" x y z;
+    
+    if get b xyz = None then
+    ( set b xyz (Some (if z < 8 then RM.Dungeon else RM.Cave));
+      set cc xyz lbl;
+      process_new_xyz (b, cc, m) xyz
+    )
+    else
+      (b, cc, m)
+
+  (* connect two points *)
+  let connect_two_points (b,cc,m) (lbl1, xyz1) (lbl2, xyz2) condition_to_stop =
+    let is_inside_cc ((_,_,z) as xyz) = is_inside cc xyz && z > 0 in
+    
+    let choose_where_to_go ((x,y,z) as src) (dst) =
+      if z = 0 || z = 1 || z = 2 && Random.int 1 > 0 then (x,y,z+1)
+      else
+        let (diff_x, diff_y, diff_z) as diff = dst --- src in
+        let len = (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z) |> float_of_int |> sqrt |> floor |> int_of_float in
+        let ls = 
+          [ (1,0,0); (-1,0,0); (0,1,0); (0,-1,0); (0,0,1); (0,0,-1) ]
+          |> List.filter (fun dxyz -> is_inside_cc (dxyz +++ src))
+          |> List.map 
+              (fun dxyz -> 
+                let propensity = (diff %%% dxyz + 6*len/5) |> (fun x -> if x < 0 then 0 else x) |> float_of_int in
+                (dxyz, propensity)
+              )
+        in
+        let dxyz = any_from_rate_ls ls in
+        src +++ dxyz
+    in
+
+    let dig_between xyz1 xyz2 b_cc_m =
+      if Random.int 2 = 0 then
+        let nxyz1 = choose_where_to_go xyz1 xyz2 in
+        ((nxyz1, xyz2), dig_at_xyz b_cc_m nxyz1 lbl1)
+      else 
+        let nxyz2 = choose_where_to_go xyz2 xyz1 in
+        ((xyz1, nxyz2), dig_at_xyz b_cc_m nxyz2 lbl2)
+    in
+
+    let rec repeat xyz1 xyz2 (b,cc,m)=
+      let (xyz1, xyz2), (b,cc,m) = dig_between xyz1 xyz2 (b,cc,m) in
+      if condition_to_stop (b,cc,m) xyz1 xyz2 then 
+        (b,cc,m)
+      else
+        repeat xyz1 xyz2 (b,cc,m)
+    in
+    repeat xyz1 xyz2 (b, cc, m)
+
+  (* connect two connected components by digging a tunnel *)
+  let connect (b, cc, m) (lbl1, s1) (lbl2, s2) =
+    match sc_sample s1, sc_sample s2 with
+    | None, Some _ -> (b, cc, Ml.remove lbl1 m)
+    | Some _, None -> (b, cc, Ml.remove lbl2 m)
+    | None, None -> (b, cc, m |> Ml.remove lbl1 |> Ml.remove lbl2)
+    | Some xyz1, Some xyz2 ->
+       
+        let condition_to_stop (b,cc,m) nxyz1 nxyz2 = (not (Ml.mem lbl1 m)) || (not (Ml.mem lbl2 m)) in
+
+        connect_two_points (b, cc, m) (lbl1, xyz1) (lbl2, xyz2) condition_to_stop
+          
+          
+
+  (* connect all connected components *)
+  let connect_everything b_cc_m =
+
+    (* *)
+    let _,_,m = b_cc_m in
+    Printf.printf "connected components: %i\n" (Ml.cardinal m);
+
+    let rec repeat (b, cc, m) =
+      match ml_sample_two m with
+      | Some ((lbl1, s1), (lbl2, s2)) ->
+          Printf.printf "(%i, %i)\n" lbl1 lbl2;
+          (* if 2 connected components exist *)
+          let b_cc_m = connect (b, cc, m) (lbl1, s1) (lbl2, s2) in
+          repeat b_cc_m
+      | None -> 
+          (* otherwise *)
+          (b, cc, m)
+    in
+    repeat b_cc_m
+
+
+  (* convert the cube data to a geo object *)
+  let geo_of_cube facnum altitude forestation (b, cc, m) = 
+    let w = Array.length cc in
+    let h = Array.length cc.(0) in
+    let depth = Array.length cc.(0).(0) in
+
+    let is_inside_cc = is_inside cc in
+
+    let rid_arr = Array.init w (fun _ -> Array.init h (fun _ -> Array.make depth None)) in
+
+    (* collect list of rms *)
+    let _, (xyz_ls, rm_ls) = 
+      fold_lim (fun (rid,lss) z ->
+        fold_lim (fun (rid,lss) x ->
+          fold_lim (fun (rid,(xyz_ls, rm_ls)) y ->
+            match get b (x,y,z) with 
+            | Some biome -> 
+              let alt = int_of_float altitude.(x).(y) in
+
+              (* make rm *)  
+              let difficulty =
+                let r() = Random.float 1.0 in
+                match biome with
+                  RM.DeepForest -> 3.0 +. r()
+                | RM.Forest -> 1.0 +. r()
+                | RM.Swamp -> r()
+                | RM.Mnt | RM.ForestMnt -> r()
+                | RM.SnowMnt -> 1.0 +. r()
+                | RM.Cave | RM.Dungeon -> float_of_int (z-1) +. r()
+                | _ -> 0.0
+              in
+              let rm =
+                { RM.lat = Mov.({res = Resource.make 0; fac = Array.init facnum (fun _ -> rndpop())}); 
+                  RM.alloc = Mov.zero ();
+                  RM.seed=Random.int 100000000; 
+                  RM.altitude = alt;
+                  RM.biome = biome;
+                  RM.modifier = {RM.cursed = false; RM.urban = true};
+                  RM.cons = [];
+                  RM.difficulty = difficulty
+                }
+              in
+              
+              set rid_arr (x,y,z) (Some rid);
+
+              (rid + 1, ((x,y,z)::xyz_ls, rm :: rm_ls))
+
+            | None -> (rid, (xyz_ls, rm_ls))
+
+          ) (rid,lss) 0 (h-1)
+        ) (rid,lss) 0 (w-1)
+      ) (0,([],[])) 0 (depth - 1)
+    in
+    
+    (* convert to array *)
+    let rm_arr = Array.of_list (List.rev rm_ls) in
+    let xyz_arr = Array.of_list (List.rev xyz_ls) in
+
+    (* region_loc array *)
+    let rloc_arr = Array.map (fun (x,y,z) -> (-z, (x,y))) xyz_arr in
+
+    (* neighbors array *)
+    let nb_arr = Array.mapi (fun rid xyz ->
+      List.fold_left (fun acc (edge, dxyz) -> 
+          let nxyz = xyz +++ dxyz in
+          if is_inside_cc nxyz then
+            match get rid_arr nxyz with
+            | Some nrid -> Me.add edge nrid acc
+            | None -> acc
+          else
+            acc
+        )
+        Me.empty
+        [(East, (1,0,0)); (West,(-1,0,0)); (North,(0,1,0)); (South,(0,-1,0)); (Up,(0,0,-1)); (Down,(0,0,1))] 
+      )
+      xyz_arr
+    in
+       
+    (* combined *)
+    let prio = Prio.make() in
+    let currid = 0 in
+    {currid; prio; rm = rm_arr; loc = rloc_arr; nb = nb_arr}
+
+
+  let generate w h depth facnum =
+    let altitude = gen_rnd_alt w h 2 in
+    let forestation = gen_rnd_alt w h 2 in
+    let b_cc_m = initial w h depth altitude forestation in
+    let b_cc_m = connect_everything b_cc_m in
+    geo_of_cube facnum altitude forestation b_cc_m 
+
+
+end

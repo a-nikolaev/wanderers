@@ -91,7 +91,7 @@ let make w h debug =
   let geo_w = 35 in
   let geo_h = 35 in
   let pol = Politics.make_variety facnum in
-  let geo = Genmap.make_geo geo_w geo_h facnum in
+  let geo = Genmap.Cube.generate geo_w geo_h 20 facnum in
   let astr = Org.Astr.make_empty (Array.length geo.G.rm) in
   let geo, astr = 
     let simulate speedup steps ga = fold_lim (fun ga _ -> ga |> Top.run speedup pol) ga 0 steps in
@@ -663,7 +663,7 @@ let respond s =
             upd_reg_astr reg astr 
         | _ -> s 
       )
-  | CtrlM.OpenAtlas ((z,(x,y)) as rloc, prev_cm) ->
+  | CtrlM.OpenAtlas ((z,(x,y)), prev_cm) ->
       let move (dx,dy,dz) = 
         let rloc1 = (z+dz, (x+dx, y+dy)) in
         match Atlas.visible_rid_of_rloc s.atlas rloc1 with
