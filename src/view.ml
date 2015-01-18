@@ -245,6 +245,14 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
     )
   in
   
+  (* mountains *)
+  set_color 0.37 0.35 0.33 1.0;
+  Atlas.Srloc.iter (fun (z,(x,y)) ->
+      if z = cursor_z && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
+        Draw.draw_sml_tile (Pos.atlas ++ (9,0)) gr (scrloc (x,y)) 
+  ) atlas.Atlas.mountains;
+
+  
   (* background *)
   let iter f =
     Array.iter ( function 

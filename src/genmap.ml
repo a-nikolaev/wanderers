@@ -112,7 +112,7 @@ let gen_rnd_alt_2 w h steps =
       z.(i).(j) <- ((Random.float 600.0) +. 200.0) *. boundary 
     done
   done;
-  add_fun z (fun () -> (Random.float 435.0)**1.19 );
+  add_fun z (fun () -> (Random.float 430.0)**1.19 );
   
   fold_lim 
     (fun zz step -> 

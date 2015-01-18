@@ -117,13 +117,16 @@ module Atlas = struct
 
   module RidKey = struct type t = region_id let compare = compare end
   module Mrid = Map.Make(RidKey)
- 
+
+  module Srloc = Set.Make(struct type t = region_loc let compare = compare end)
+
   type rmpoint = {rid: region_id; rloc: region_loc; biome:RM.biome; markls: mark list}
   type t = {
     rmp: (rmpoint option) array;
     visible : int Mrid.t;
     currid : region_id;
-    curloc : region_loc
+    curloc : region_loc;
+    mountains : Srloc.t
   }
   
   let visible_rid_of_rloc atlas rloc =
@@ -220,15 +223,33 @@ module Atlas = struct
     in
     stairs_markls
   
+  (* update the atlas from the map of rids *)
   let update_generic comp_func pol geo atlas = 
     let currid = geo.G.currid in
     let visible = comp_func currid geo in
+    (* update teh rmpoint array *)
     Mrid.iter (fun rid _ ->
       atlas.rmp.(rid) <- 
         Some {rid=rid; rloc = geo.G.loc.(rid); biome = geo.G.rm.(rid).RM.biome; 
           markls = comp_markls pol geo.G.rm.(rid) geo.G.nb.(rid)}
     ) visible;
-    {atlas with visible; currid; curloc = geo.G.loc.(currid)}
+    (* update the mountains set *)
+    let mountains =
+      Mrid.fold (fun rid _ acc ->
+        let (z, (x,y)) as rloc = geo.G.loc.(rid) in
+        if z = 0 then
+          List.fold_left (fun acc (edge,(dx,dy)) ->
+            if G.Me.mem edge geo.G.nb.(rid) then
+              acc
+            else
+              Srloc.add (z,(x+dx, y+dy)) acc
+          )
+          acc [East,(1,0); North,(0,1); West,(-1,0); South,(0,-1)]
+        else
+          acc
+      ) visible atlas.mountains
+    in
+    {atlas with visible; currid; curloc = geo.G.loc.(currid); mountains}
 
   let update = update_generic comp_visible 
   
@@ -237,6 +258,6 @@ module Atlas = struct
   let make pol geo =
     let rmnum = Array.length geo.G.rm in
     let rmp = Array.make rmnum None in
-    update pol geo {rmp; visible = Mrid.empty; currid = 0; curloc = (0,(0,0))}
+    update pol geo {rmp; visible = Mrid.empty; currid = 0; curloc = (0,(0,0)); mountains = Srloc.empty}
 
 end
