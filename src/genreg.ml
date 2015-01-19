@@ -420,7 +420,7 @@ let gen pol edges_func rid rm astr =
             Area.set obj.Obj.posobj (i,j) (Some (Obj.Door Obj.Closed))
         | Tile.CWall ->
             ( match tile with 
-              | Tile.BonusTower b -> Area.set obj.Obj.posobj (i,j) (Some (Obj.Bonus b))
+              | Tile.BonusTower b -> Area.set obj.Obj.posobj (i,j) (Some (Obj.BonusTower b))
               | _ -> ()
             )
         | _ -> ()

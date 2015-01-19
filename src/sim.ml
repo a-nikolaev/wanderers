@@ -262,7 +262,9 @@ let conserve_momentum proj u =
   {u with Unit.vel = u.Unit.vel --. (10.0 *. proj.Proj.item.Proj.mass /. Unit.get_total_mass u %%. (proj.Proj.vel --. u.Unit.vel))}
 
 (* Firing projectiles *)
-let actions_with_objects (reg, u) =
+let actions_with_objects (u, reg, rm) =
+  (* apply the action *)
+  let upd_reg u reg = {reg with R.e = E.upd u reg.R.e} in
   match u.Unit.ac with
     (FireProj loc)::ac_tl -> 
       ( match Unit.get_ranged u with
@@ -293,20 +295,30 @@ let actions_with_objects (reg, u) =
               else
                 u, reg1
             in
-
-            (reg1, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
+            
+            let u = {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl} in
+            (u, upd_reg u reg1, rm)
 
         | None ->
-            (reg, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
+            let u = {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl} in
+            (u, upd_reg u reg, rm)
       )
   | (OperateObj (loc, op))::ac_tl -> 
       if loc_infnorm(u.Unit.loc -- loc) <= 1 then
-      ( let reg1 = Simobj.toggle_door u loc reg in
-        (reg1, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
+      ( 
+        match Area.get reg.R.obj.R.Obj.posobj loc with
+        | Some (R.Obj.BonusTower _ ) ->
+            let u, reg, rm = Simobj.toggle_bonus_tower loc (u, reg, rm) in
+            let u = {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl} in
+            (u, upd_reg u reg, rm)
+        | _ ->
+            let reg1 = Simobj.toggle_door u loc reg in
+            let u = {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl} in
+            (u, upd_reg u reg1, rm)
       )
       else
-        (reg, {u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl})
-  | _ -> (reg, u) 
+        ({u with Unit.ac = (Wait (u.Unit.loc, 0.0))::ac_tl}, reg, rm)
+  | _ -> (u, reg, rm) 
 
 
 (* Deal damage aux function *)
@@ -617,8 +629,12 @@ let run_for_one dt u s (reg, astr, need_input) =
   (* move and adjust *)
   let u' = u |> move reg.R.a reg.R.e dt |> adjust reg.R.a in
 
-  (* fire projectiles *)
-  let reg, u' = actions_with_objects (reg, u') in
+  (* fire projectiles, etc *)
+  let u', reg, rm = 
+    let rm = s.geo.G.rm.(s.geo.G.currid) in
+    actions_with_objects (u', reg, rm) 
+  in
+  s.geo.G.rm.(s.geo.G.currid) <- rm;
 
   (*
   (* timed actions - affects other units, overshadows old ue and u' *)

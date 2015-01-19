@@ -738,6 +738,10 @@ let draw_ntfy time u =
     | Unit.NtfyStunned -> 
         set_color 0.4 0.4 1.0 0.6; 
         Draw.put_string_vec "%" Draw.gr_map (u.Unit.pos ++. (0.5*.(0.0 +. 0.1) *. sin(t), t*.0.4)) 
+    | Unit.NtfyOther s -> 
+        set_color 0.8 0.8 0.8 0.6; 
+        let disp = -. (float (String.length s)) *. 0.25 +. 0.5 in
+        Draw.put_string_vec s Draw.gr_map (u.Unit.pos ++. (disp, 0.0) ++. (0.5*.(0.0 +. 0.1) *. sin(t), t*.0.4)) 
   ) u.Unit.ntfy
 
 

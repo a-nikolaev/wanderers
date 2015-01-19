@@ -535,7 +535,7 @@ module Unit = struct
  
 
   (* unit *)
-  type notification_type = NtfyDamage of float | NtfyStunned
+  type notification_type = NtfyDamage of float | NtfyStunned | NtfyOther of string
   type notification = notification_type * float
   type id = int
   
@@ -885,7 +885,7 @@ module R = struct
 
     (* positional object type *)
     type door_state = Open | Closed
-    type pos_obj_type = Door of door_state | Bonus of bool
+    type pos_obj_type = Door of door_state | BonusTower of bool
 
     type magical_obj = Spark of (loc * vec * float * float)
     type movable_obj = Magical of magical_obj
