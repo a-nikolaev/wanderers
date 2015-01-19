@@ -88,10 +88,10 @@ type t =
 
 let make w h debug = 
   let facnum = default_factions_number in
-  let geo_w = 35 in
-  let geo_h = 35 in
+  let geo_w = 45 in
+  let geo_h = 45 in
   let pol = Politics.make_variety facnum in
-  let geo = Genmap.make_geo geo_w geo_h facnum in
+  let geo = Genmap.Cube.generate geo_w geo_h 20 facnum in
   let astr = Org.Astr.make_empty (Array.length geo.G.rm) in
   let geo, astr = 
     let simulate speedup steps ga = fold_lim (fun ga _ -> ga |> Top.run speedup pol) ga 0 steps in
@@ -158,8 +158,10 @@ let make w h debug =
     find_good_rid()
   in
   (
+    (*
     let z, (x,y) = geo.G.loc.(new_currid) in
-    Printf.printf "new_currid = %i, z = %i, x = %i, y = %i\n%!" new_currid z x y;
+    Printf.printf "new_currid = %i, z = %i, x = %i, y = %i\n%!" new_currid z x y; 
+    *)
   );
   let geo = {geo with G.currid = new_currid} in
   let geo = geo |> Globalmove.move pol astr South |> Globalmove.move pol astr North in 
@@ -389,7 +391,7 @@ let respond s =
                   let mtr, mu = 
                     let inv = Unit.get_inv mu in
                     match Inv.get_bunch Inv.default_coins_container Item.Cnt.default_coins_slot inv with
-                    | Some (money_bunch, inv2) when money_bunch.Item.Cnt.item.barcode = Item.Coll.coin_barcode  ->
+                    | Some (money_bunch, inv2) when money_bunch.Item.Cnt.item.Item.barcode = Item.Coll.coin_barcode  ->
                         let mtr = Trade.exchange [] [money_bunch] mtr in
                         let mu = Unit.upd_inv inv2 mu in
                         (mtr, mu)                        
@@ -663,7 +665,7 @@ let respond s =
             upd_reg_astr reg astr 
         | _ -> s 
       )
-  | CtrlM.OpenAtlas ((z,(x,y)) as rloc, prev_cm) ->
+  | CtrlM.OpenAtlas ((z,(x,y)), prev_cm) ->
       let move (dx,dy,dz) = 
         let rloc1 = (z+dz, (x+dx, y+dy)) in
         match Atlas.visible_rid_of_rloc s.atlas rloc1 with
@@ -714,6 +716,10 @@ let respond s =
                           ns
                       | _ -> {s with cm = prev_cm}
                     )
+                | "map" ->
+                    let new_atlas = Atlas.update_all s.pol s.geo s.atlas in
+                    {s with atlas = new_atlas; cm = prev_cm}
+                    
                 | _ -> {s with cm = prev_cm}
               )
             in

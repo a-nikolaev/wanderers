@@ -245,6 +245,14 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
     )
   in
   
+  (* mountains *)
+  set_color 0.37 0.35 0.33 1.0;
+  Atlas.Srloc.iter (fun (z,(x,y)) ->
+      if z = cursor_z && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
+        Draw.draw_sml_tile (Pos.atlas ++ (9,0)) gr (scrloc (x,y)) 
+  ) atlas.Atlas.mountains;
+
+  
   (* background *)
   let iter f =
     Array.iter ( function 
@@ -278,6 +286,17 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
   
   set_color 0.1 0.1 0.1 1.0;
   iter ( fun loc -> Draw.draw_sml_tile (Pos.atlas) gr (scrloc loc) );
+  
+  (* below *)
+  set_color 0.30 0.05 0.5 0.5;
+  Array.iter ( function 
+    | Some rmp ->
+        let z, ((x,y) as loc) = rmp.Atlas.rloc in
+        if z = cursor_z - 1 && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
+          Draw.draw_sml_tile (Pos.atlas ++ (7,0)) gr (scrloc loc) 
+    | _ -> ()
+  ) atlas.Atlas.rmp;
+  
 
   (* shadowed *)
   Array.iter ( function 
@@ -288,6 +307,17 @@ let draw_atlas atlas geo mvbl_region_loc maxr_x maxr_y gr =
 
   (* currently visible *)
   Atlas.iter_visible (fun rmp -> draw_rmp 1.0 1.0 rmp) atlas;
+  
+  (* above *)
+  set_color 0.5 0.5 0.5 0.3;
+  Array.iter ( function 
+    | Some rmp ->
+        let z, ((x,y) as loc) = rmp.Atlas.rloc in
+        if z = cursor_z + 1 && abs (x-cursor_x) < maxr_x && abs (y-cursor_y) < maxr_y then
+          Draw.draw_sml_tile (Pos.atlas ++ (8,0)) gr (scrloc loc) 
+    | _ -> ()
+  ) atlas.Atlas.rmp;
+   
   
   (* mark player location *)
   if player_z = cursor_z && abs (player_x-cursor_x) < maxr_x && abs (player_y-cursor_y) < maxr_y then 
@@ -676,10 +706,12 @@ let draw_area_tile_obstacles t reg rm vision (i,j) =
           | Tile.Door ds -> draw_door ds (2,9)
           | Tile.DungeonDoor ds -> draw_door ds (2,7) 
           | Tile.CaveDoor ds -> draw_door ds (2,11) 
+          | Tile.BonusTower b -> draw_obj (2 + (if b then 0 else 1), 1) 
           | Tile.Tree1 -> draw_obj (0,3)
           | Tile.Tree2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (1,3) else (1,5))
           | Tile.Rock1 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (2,3) else (2,5))
           | Tile.Rock2 -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (3,3) else (3,5))
+          | Tile.BigRock x -> draw_obj (if rm.RM.biome <> RM.SnowMnt then (4 + x,3) else (4 + x,5))
           | Tile.DungeonWall -> draw_obj (0,7) 
           | Tile.CaveWall -> draw_obj (0,11) 
           | _ -> () );
@@ -706,6 +738,10 @@ let draw_ntfy time u =
     | Unit.NtfyStunned -> 
         set_color 0.4 0.4 1.0 0.6; 
         Draw.put_string_vec "%" Draw.gr_map (u.Unit.pos ++. (0.5*.(0.0 +. 0.1) *. sin(t), t*.0.4)) 
+    | Unit.NtfyOther s -> 
+        set_color 0.8 0.8 0.8 0.6; 
+        let disp = -. (float (String.length s)) *. 0.25 +. 0.5 in
+        Draw.put_string_vec s Draw.gr_map (u.Unit.pos ++. (disp, 0.0) ++. (0.5*.(0.0 +. 0.1) *. sin(t), t*.0.4)) 
   ) u.Unit.ntfy
 
 

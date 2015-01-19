@@ -109,6 +109,7 @@ let toggle_door u loc reg =
 
     let obj_inv = function
       | R.Obj.Door s -> R.Obj.Door ( match s with R.Obj.Open -> R.Obj.Closed | R.Obj.Closed -> R.Obj.Open )
+      | R.Obj.BonusTower x -> R.Obj.BonusTower x
     in
     
     let tile_inv = 
@@ -130,6 +131,46 @@ let toggle_door u loc reg =
   )
   else
     reg
+
+let toggle_bonus_tower loc (u, reg, rm) =
+
+  let oa = R.(reg.obj.Obj.posobj) in
+  let ta = reg.R.a in
+
+  let u = 
+    ( match Area.get oa loc with
+      | Some ((R.Obj.BonusTower true) as obj) -> 
+          Area.set oa loc (Some (R.Obj.BonusTower false));
+          Area.set ta loc (Tile.BonusTower false);
+
+          let core = Unit.get_core u in
+          let prop = core.Unit.Core.prop in
+          let d_atl = 0.5 in
+          let d_rct = -0.05 *. prop.Unit.Core.reaction in
+          let d_cns = 2.5 in
+          let d_mgc = 0.04 in
+          
+          let prop = {prop with 
+              athletic = prop.Unit.Core.athletic +. d_atl;
+              reaction = prop.Unit.Core.reaction +. d_rct;
+              magic_aff = prop.Unit.Core.magic_aff +. d_mgc;
+              max_eng = (prop.Unit.Core.magic_aff +. d_mgc) *. 16.0 |> round |> float;
+              mass = prop.Unit.Core.mass +. d_cns;
+            }
+          in
+          let core = {core with Unit.Core.prop = prop} |> Unit.Core.adjust_aux_info in
+
+          let u = Unit.upd_core core u |> Unit.heal 1000.0 |> Unit.add_energy 100.0 in
+
+          {u with Unit.ntfy = (NtfyOther "ATL+ RCT- CNS+ MGC+", 0.0) :: u.Unit.ntfy;}
+      | _ -> u
+    )
+  in
+
+  let rm = {rm with RM.specials = List.map (function RM.BonusTower true -> RM.BonusTower false | x -> x) rm.RM.specials} in
+
+  let upd_reg u reg = {reg with R.e = E.upd u reg.R.e} in
+  (u, upd_reg u reg, rm)
 
 let upd_one_movobj dt reg movobj =
   match movobj with
