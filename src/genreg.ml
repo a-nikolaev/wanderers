@@ -386,6 +386,12 @@ let gen pol edges_func rid rm astr =
     zones
   in
 
+  (* add specials *)
+  List.iter (function 
+    | RM.BonusTower b ->
+        Area.set area (Area.w area / 2, Area.h area / 2) (Tile.BonusTower b);
+  ) rm.RM.specials;
+
   (* add stairs *)
   let obj = Obj.empty (Area.w area) (Area.h area) in
   let obj = 
@@ -400,16 +406,23 @@ let gen pol edges_func rid rm astr =
       {obj with Obj.stairsls = (Obj.StairsUp, loc) :: obj.Obj.stairsls}
     else
       obj in
-  (* add door objects from the generated map *)
+
+  (* add doors and other positional objects from the generated map *)
   let _ =
     for i = 0 to (Area.w area) - 1 do
       for j = 0 to (Area.h area) - 1 do
-        let cl = Area.get area (i,j) |> Tile.classify in
+        let tile = Area.get area (i,j) in
+        let cl = tile |> Tile.classify in
         match cl with
         | Tile.CDoor Tile.IsOpen ->
             Area.set obj.Obj.posobj (i,j) (Some (Obj.Door Obj.Open))
         | Tile.CDoor Tile.IsClosed ->
             Area.set obj.Obj.posobj (i,j) (Some (Obj.Door Obj.Closed))
+        | Tile.CWall ->
+            ( match tile with 
+              | Tile.BonusTower b -> Area.set obj.Obj.posobj (i,j) (Some (Obj.Bonus b))
+              | _ -> ()
+            )
         | _ -> ()
       done
     done 

@@ -162,6 +162,7 @@ let simple_rm alt biome facnum difficulty =
     RM.modifier = {RM.cursed = false; RM.urban = true};
     RM.cons = [];
     RM.difficulty = difficulty;
+    RM.specials = [];
   } 
 
 let simple_dungeon alt locxy facnum =
@@ -229,7 +230,8 @@ let make_geo w h facnum =
       RM.biome = biome;
       RM.modifier = {RM.cursed = false; RM.urban = true};
       RM.cons = [];
-      RM.difficulty = difficulty
+      RM.difficulty = difficulty;
+      RM.specials = [];
     }) in
   let loc_ow = Array.init len_ow (fun k -> (0,(x_of_index k, y_of_index k))) in
   let nb_ow = Array.init len_ow (fun k ->
@@ -661,7 +663,7 @@ module Cube = struct
 
 
   (* convert the cube data to a geo object *)
-  let geo_of_cube facnum altitude forestation (b, cc, m) = 
+  let geo_of_cube facnum altitude forestation (b, cc, m) m_bonuses = 
     let w = Array.length cc in
     let h = Array.length cc.(0) in
     let depth = Array.length cc.(0).(0) in
@@ -669,6 +671,8 @@ module Cube = struct
     let is_inside_cc = is_inside cc in
 
     let rid_arr = Array.init w (fun _ -> Array.init h (fun _ -> Array.make depth None)) in
+
+    let s_bonuses = Ml.fold (fun _ xyz acc -> Sc.add xyz acc) m_bonuses Sc.empty in
 
     (* collect list of rms *)
     let _, (xyz_ls, rm_ls) = 
@@ -691,6 +695,9 @@ module Cube = struct
                 | RM.Cave | RM.Dungeon -> float_of_int (z-1) +. r()
                 | _ -> 0.0
               in
+
+              let specials = if Sc.mem (x,y,z) s_bonuses then [RM.BonusTower true] else [] in
+
               let rm =
                 { RM.lat = Mov.({res = Resource.make 0; fac = Array.init facnum (fun _ -> rndpop())}); 
                   RM.alloc = Mov.zero ();
@@ -699,7 +706,8 @@ module Cube = struct
                   RM.biome = biome;
                   RM.modifier = {RM.cursed = false; RM.urban = true};
                   RM.cons = [];
-                  RM.difficulty = difficulty
+                  RM.difficulty = difficulty;
+                  RM.specials = specials;
                 }
               in
               
@@ -747,9 +755,21 @@ module Cube = struct
   let generate w h depth facnum =
     let altitude = gen_rnd_alt_2 w h 2 in
     let forestation = gen_rnd_alt w h 2 in
-    let b_cc_m = initial w h depth altitude forestation in
+    let (_,_,m) as b_cc_m = initial w h depth altitude forestation in
+    let m_bonuses =
+      let find_central s =
+        let (x, y, z), n = Sc.fold ( fun (x,y,z) ((ax,ay,az),an) -> ((ax+x, ay+y, az+z), an+1) ) s ((0,0,0),0) in
+        let f v = round_prob (float v /. float n) in
+        let cxyz = f x, f y, f z in
+        let len (x,y,z) = abs x + abs y + abs z in
+        Sc.fold ( fun xyz acc ->
+          if len (xyz --- cxyz) < len (acc --- cxyz) then xyz else acc
+        ) s (Sc.choose s) 
+      in
+      Ml.map ( fun s -> find_central s ) m
+    in
     let b_cc_m = connect_everything b_cc_m in
-    geo_of_cube facnum altitude forestation b_cc_m 
+    geo_of_cube facnum altitude forestation b_cc_m m_bonuses 
 
 
 end

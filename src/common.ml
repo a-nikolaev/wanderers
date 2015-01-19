@@ -45,6 +45,7 @@ module Tile = struct
   type t = Grass | Wall | Tree1 | Tree2 | Rock1 | Rock2 | BigRock of int
     | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | Door of door_state | MarketStand of int
+    | BonusTower of bool
     | DungeonFloor | DungeonWall | DungeonDoor of door_state
     | CaveFloor | CaveWall | CaveDoor of door_state
 
@@ -63,7 +64,7 @@ module Tile = struct
   let classify = function
     | Grass | SwampyGround | SwampyPool | RockyGround | SnowyGround | IcyGround
     | WoodenFloor | DungeonFloor | CaveFloor -> CFloor
-    | Wall | Tree1 | Tree2 | Rock1 | Rock2 | BigRock _ | DungeonWall | CaveWall | MarketStand _ -> CWall
+    | Wall | Tree1 | Tree2 | Rock1 | Rock2 | BigRock _ | DungeonWall | CaveWall | MarketStand _ | BonusTower _ -> CWall
     | Door s | DungeonDoor s | CaveDoor s -> CDoor s
 
   let is_a_door = function
@@ -841,8 +842,11 @@ module RM = struct
   type constype = CHouse | CFarm | CMarket | CFactory | CCityHall
   type construction = {constype: constype; consloc:loc}
 
+  type special_property = BonusTower of bool
+
   type t = {seed:int; biome:biome; modifier:modifier; altitude:int; lat:Mov.t; alloc:Mov.t; cons: construction list;
-    difficulty: float
+    difficulty: float;
+    specials: special_property list;
   }
   
   let has_market rm = List.exists (fun c -> c.constype = CMarket) rm.cons 
@@ -881,7 +885,7 @@ module R = struct
 
     (* positional object type *)
     type door_state = Open | Closed
-    type pos_obj_type = Door of door_state
+    type pos_obj_type = Door of door_state | Bonus of bool
 
     type magical_obj = Spark of (loc * vec * float * float)
     type movable_obj = Magical of magical_obj

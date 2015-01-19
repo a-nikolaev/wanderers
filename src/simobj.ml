@@ -109,6 +109,7 @@ let toggle_door u loc reg =
 
     let obj_inv = function
       | R.Obj.Door s -> R.Obj.Door ( match s with R.Obj.Open -> R.Obj.Closed | R.Obj.Closed -> R.Obj.Open )
+      | R.Obj.Bonus x -> R.Obj.Bonus x
     in
     
     let tile_inv = 
