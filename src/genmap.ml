@@ -576,7 +576,7 @@ module Cube = struct
           |> List.map 
               (fun dxyz -> 
                 let propensity = 
-                  let v = ((diff +++ (0,0, len * 2 / 5)) %%% dxyz + 7*len/5) in
+                  let v = ((diff +++ (0,0, len * 4 / 6)) %%% dxyz + 7*len/5) in
                   let fv = v |> (fun x -> if x < 0 then 0 else x) |> float_of_int in
                   fv**1.4
                 in
