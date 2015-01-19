@@ -145,10 +145,10 @@ let toggle_bonus_tower loc (u, reg, rm) =
 
           let core = Unit.get_core u in
           let prop = core.Unit.Core.prop in
-          let d_atl = 1.0 in
-          let d_rct = -0.1 *. prop.Unit.Core.reaction in
-          let d_cns = 5.0 in
-          let d_mgc = 0.05 in
+          let d_atl = 0.5 in
+          let d_rct = -0.05 *. prop.Unit.Core.reaction in
+          let d_cns = 2.5 in
+          let d_mgc = 0.04 in
           
           let prop = {prop with 
               athletic = prop.Unit.Core.athletic +. d_atl;
