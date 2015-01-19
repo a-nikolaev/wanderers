@@ -630,7 +630,25 @@ module Cube = struct
         connect_two_points (b, cc, m) (lbl1, xyz1) (lbl2, xyz2) condition_to_stop
      
 
-  let dig_dungeon (b, cc, m) =
+  let dig_deep_dungeon (b, cc, m) =
+    match ml_sample m with
+    | Some (lbl, s) ->
+        ( match sc_sample s, sc_sample s with
+          | Some ((x1,y1,z1) as xyz1), Some ((x2,y2,z2) as xyz2) when xyz1 <> xyz2 ->
+              let xyz3 = (x1+x2)/2, (y1+y2)/2, Array.length cc.(0).(0) - 1 in
+              
+              let len (a,b,c) = abs a + abs b + abs c in
+
+              let condition_to_stop (b,cc,m) nxyz1 nxyz2 = 
+                len (nxyz1 --- nxyz2) <= 1 || (not (Ml.mem lbl m))  
+              in
+              connect_two_points (b, cc, m) (lbl, xyz1) (lbl, xyz3) condition_to_stop
+
+          | _ -> (b, cc, m)    
+        ) 
+    | _ -> (b, cc, m)
+  
+  let dig_tunnel (b, cc, m) =
     match ml_sample m with
     | Some (lbl, s) ->
         ( match sc_sample s, sc_sample s with
@@ -645,6 +663,7 @@ module Cube = struct
           | _ -> (b, cc, m)    
         ) 
     | _ -> (b, cc, m)
+
 
   (* connect all connected components *)
   let connect_everything b_cc_m =
@@ -795,7 +814,7 @@ module Cube = struct
           let c = Sc.cardinal s in
           let prob = 
             let x = (float c /. float sum) in
-            Random.float (1.2 -. x)
+            (1.2 -. x)  (* pieces of land that are <= 20% of the total landmass always have a bonus statue *)
           in
           Random.float 1.0 <= prob
         in
@@ -804,7 +823,11 @@ module Cube = struct
       ) m
     in
     
-    let b_cc_m = b_cc_m |> connect_everything |> dig_dungeon |> dig_dungeon |> dig_dungeon |> dig_dungeon in
+    let b_cc_m = 
+      b_cc_m 
+      |> connect_everything  
+      |> dig_deep_dungeon |> dig_deep_dungeon |> dig_deep_dungeon |> dig_deep_dungeon |> dig_deep_dungeon 
+      |> dig_tunnel |> dig_tunnel |> dig_tunnel |> dig_tunnel in
     
     geo_of_cube facnum altitude forestation b_cc_m m_bonuses 
 
