@@ -83,10 +83,12 @@ type t =
 
     debug : bool;
 
-    console : Console.t
+    random_seed : string;
+
+    console : Console.t;
   }
 
-let make w h debug = 
+let make w h used_seed debug = 
   let facnum = default_factions_number in
   let geo_w = 45 in
   let geo_h = 45 in
@@ -210,17 +212,23 @@ let make w h debug =
     clock_last_alive_check = Clock.zero;
     opts = Options.default;
     debug;
+    random_seed = used_seed;
     console = Console.make()
   }
 
 
 let init seed b_debug =
-  Random.init seed;
-  make 25 16 b_debug
+  let max_seed = 1000000000 in
+  let hash_string s =
+    Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) 
+  in
+  
+  Random.init (hash_string seed);
+  
+  make 25 16 seed b_debug
 
 
 let init_full opt_string b_debug =
-  let max_seed = 1000000000 in
   let seed =
     match opt_string with
     | Some s -> s
@@ -240,10 +248,7 @@ let init_full opt_string b_debug =
       
       rnd_seed_string()
   in
-  let hash_string s =
-    Base.fold_lim (fun a i -> (a*256 + Char.code s.[i]) mod (max_seed/512)) 0 0 (String.length s - 1) 
-  in
-  init (hash_string seed) b_debug
+  init seed b_debug
 
 
 let save_to_file s file = 
@@ -257,6 +262,7 @@ let load_from_file file =
   let ic = open_in_bin file in
   let s = input_value ic in
   close_in ic;
+  Printf.printf "Random seed: %s\n%!" s.random_seed;
   s
 
 module Msg = struct
