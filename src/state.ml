@@ -158,8 +158,10 @@ let make w h debug =
     find_good_rid()
   in
   (
+    (*
     let z, (x,y) = geo.G.loc.(new_currid) in
-    Printf.printf "new_currid = %i, z = %i, x = %i, y = %i\n%!" new_currid z x y;
+    Printf.printf "new_currid = %i, z = %i, x = %i, y = %i\n%!" new_currid z x y; 
+    *)
   );
   let geo = {geo with G.currid = new_currid} in
   let geo = geo |> Globalmove.move pol astr South |> Globalmove.move pol astr North in 

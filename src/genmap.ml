@@ -399,6 +399,7 @@ module Cube = struct
   type lbl = int
   type coord = int*int*int
   module Sc = Set.Make (struct type t = coord let compare = compare end)
+  module Mc = Map.Make (struct type t = coord let compare = compare end)
   module Ml = Map.Make (struct type t = lbl let compare = compare end)
 
   let (+++) (a,b,c) (d,e,f) = (a+d, b+e, c+f)
@@ -548,10 +549,10 @@ module Cube = struct
       [ (1,0,0); (-1,0,0); (0,1,0); (0,-1,0); (0,0,1); (0,0,-1) ]
   
   let dig_at_xyz (b, cc, m) xyz lbl =
-
     let x,y,z = xyz in
+    (*
     Printf.printf "dig at (%i,%i,%i)\n%!" x y z;
-    
+    *) 
     if get b xyz = None then
     ( set b xyz (Some (if z < 8 then RM.Dungeon else RM.Cave));
       set cc xyz lbl;
@@ -575,9 +576,9 @@ module Cube = struct
           |> List.map 
               (fun dxyz -> 
                 let propensity = 
-                  let v = ((diff +++ (0,0,len/3)) %%% dxyz + 7*len/5) in
+                  let v = ((diff +++ (0,0, len * 2 / 5)) %%% dxyz + 7*len/5) in
                   let fv = v |> (fun x -> if x < 0 then 0 else x) |> float_of_int in
-                  fv**1.3
+                  fv**1.4
                 in
                 (dxyz, propensity)
               )
@@ -627,15 +628,30 @@ module Cube = struct
         let condition_to_stop (b,cc,m) nxyz1 nxyz2 = (not (Ml.mem lbl1 m)) || (not (Ml.mem lbl2 m)) in
 
         connect_two_points (b, cc, m) (lbl1, xyz1) (lbl2, xyz2) condition_to_stop
-          
-          
+     
+
+  let dig_dungeon (b, cc, m) =
+    match ml_sample m with
+    | Some (lbl, s) ->
+        ( match sc_sample s, sc_sample s with
+          | Some xyz1, Some xyz2 when xyz1 <> xyz2 ->
+              
+              let len (a,b,c) = abs a + abs b + abs c in
+              let condition_to_stop (b,cc,m) nxyz1 nxyz2 = 
+                len (nxyz1 --- nxyz2) <= 1 || (not (Ml.mem lbl m))  
+              in
+              connect_two_points (b, cc, m) (lbl, xyz1) (lbl, xyz2) condition_to_stop
+
+          | _ -> (b, cc, m)    
+        ) 
+    | _ -> (b, cc, m)
 
   (* connect all connected components *)
   let connect_everything b_cc_m =
 
     (* *)
     let _,_,m = b_cc_m in
-    Printf.printf "connected components: %i\n" (Ml.cardinal m);
+    (* Printf.printf "connected components: %i\n" (Ml.cardinal m); *)
 
     let rec repeat (b, cc, m) =
       match ml_sample_two m with
@@ -648,7 +664,7 @@ module Cube = struct
           in
 
           if Random.float 1.0 < prob_consider then
-          ( Printf.printf "(%i, %i)\n" lbl1 lbl2;
+          ( (* Printf.printf "(%i, %i)\n" lbl1 lbl2; *)
             (* if 2 connected components exist *)
             let b_cc_m = connect (b, cc, m) (lbl1, s1) (lbl2, s2) in
             repeat b_cc_m
@@ -672,7 +688,7 @@ module Cube = struct
 
     let rid_arr = Array.init w (fun _ -> Array.init h (fun _ -> Array.make depth None)) in
 
-    let s_bonuses = Ml.fold (fun _ xyz acc -> Sc.add xyz acc) m_bonuses Sc.empty in
+    let mc_bonuses = Ml.fold (fun _ (xyz,b) acc -> Mc.add xyz b acc) m_bonuses Mc.empty in
 
     (* collect list of rms *)
     let _, (xyz_ls, rm_ls) = 
@@ -696,7 +712,12 @@ module Cube = struct
                 | _ -> 0.0
               in
 
-              let specials = if Sc.mem (x,y,z) s_bonuses then [RM.BonusTower true] else [] in
+              let specials = 
+                try 
+                  [RM.BonusTower (Mc.find (x,y,z) mc_bonuses)]
+                with 
+                  Not_found -> []
+              in
 
               let rm =
                 { RM.lat = Mov.({res = Resource.make 0; fac = Array.init facnum (fun _ -> rndpop())}); 
@@ -756,6 +777,7 @@ module Cube = struct
     let altitude = gen_rnd_alt_2 w h 2 in
     let forestation = gen_rnd_alt w h 2 in
     let (_,_,m) as b_cc_m = initial w h depth altitude forestation in
+
     let m_bonuses =
       let find_central s =
         let (x, y, z), n = Sc.fold ( fun (x,y,z) ((ax,ay,az),an) -> ((ax+x, ay+y, az+z), an+1) ) s ((0,0,0),0) in
@@ -766,9 +788,24 @@ module Cube = struct
           if len (xyz --- cxyz) < len (acc --- cxyz) then xyz else acc
         ) s (Sc.choose s) 
       in
-      Ml.map ( fun s -> find_central s ) m
+      let sum = Ml.fold (fun _ s sum -> sum + Sc.cardinal s) m 0 in
+      
+      Ml.map ( fun s ->
+        let bonus_is_turned_on = 
+          let c = Sc.cardinal s in
+          let prob = 
+            let x = (float c /. float sum) in
+            Random.float (1.2 -. x)
+          in
+          Random.float 1.0 <= prob
+        in
+        (find_central s, bonus_is_turned_on) 
+
+      ) m
     in
-    let b_cc_m = connect_everything b_cc_m in
+    
+    let b_cc_m = b_cc_m |> connect_everything |> dig_dungeon |> dig_dungeon |> dig_dungeon |> dig_dungeon in
+    
     geo_of_cube facnum altitude forestation b_cc_m m_bonuses 
 
 
