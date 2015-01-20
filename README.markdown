@@ -55,7 +55,7 @@ Make sure you have your SDL1.2 and OpenGL libraries installed. Then just execute
 `t` Rest   
 `Space` Wait   
 `i` or `Enter` Inventory mode (`0`, `1`, `2` to move items between sections, `Esc` to cancel)   
-`f` Ranged attack mode (`f` to fire, `Esc` to cancel)   
+`f` Ranged attack mode (`f` to shoot, `Esc` to cancel)   
 `v` Interaction mode (`v` or `Enter` to open/close doors or barter, `f` for ranged attack)   
 `m` Map (`arrow keys` and `<`, `>` to move, `Esc` to cancel)    
 `<` `>` Use stairs   

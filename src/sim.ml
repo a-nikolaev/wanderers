@@ -581,7 +581,7 @@ let timed_better dt u reg =
               | _ -> tl in
               (Wait (u.Unit.loc, 0.0)) :: tl_ext 
             in
-            Unit.{u with ac}
+            Unit.({u with ac})
         in
         (u, upd_reg u reg)
 
