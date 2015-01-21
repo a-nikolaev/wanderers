@@ -76,10 +76,8 @@ To confirm your purchase, press `Enter`.
 
 ### Tips for new players
 When you start playing, first, take a look at your `CNS` (Constitution).
-This is your mass in kilograms, and your max HP. It is better if `CNS` is in the range 65-85.
-Too heavy characeters are a little too slow, and too light characters a a bit too weak.
-In the future, really light characters will get better magical abilities, but it is not in 
-the game yet.
+This is your mass in kilograms, and your max HP. Heavy characters are slower, 
+and light characters are weaker. Also, light characters have better magical abilities.
 
 The very first goal is to find some weapon, even a simple stick or a knife will make a big 
 difference. You also may find a good random seed, where you start with weapons. To rest, 
