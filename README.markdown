@@ -1,4 +1,6 @@
 
+![](http://i.imgur.com/TAiMVDq.png)
+
 ## Wanderers
 
 An open world adventure and dungeon crawling game. The game is still in development, but many characteristic features have been implemented already.
@@ -25,6 +27,8 @@ An open world adventure and dungeon crawling game. The game is still in developm
   Many features, for example social organizations of the NPCs, reputation, rumors,
   spell casting, villains, apocalyptic events and global quests are not 
   implemented yet.
+
+![](http://i.imgur.com/SWRG9ws.png)
 
 ### How to build
 On Linux and (probably) OSX. Install the latest `ocaml` package for your system.
@@ -107,8 +111,6 @@ Affects the speed of movement, reaction time, the strength and the duration of y
 #### Defense
 `DEF (Defense)`. The probability to block an attack. All momentum of the attack is still absorbed,
 so defense does not improve evasion.
-
-![](http://i.imgur.com/SWRG9ws.png)
 
 ### License
 The game is distributed under GPL3 license. 
