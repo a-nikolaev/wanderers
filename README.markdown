@@ -1,43 +1,30 @@
 
 ## Wanderers
 
-An open world adventure / dungeon crawling game. Although the final version is not ready yet,
-many of the characteristic features of the game are already implemented.
+An open world adventure and dungeon crawling game. The game is still in development, but many characteristic features have been implemented already.
 
-[![](http://i.imgur.com/kCdu5qL.png)](http://i.imgur.com/RGIn9hn.png) 
-[![](http://i.imgur.com/ARCqRzW.png)](http://i.imgur.com/bRqoNNG.png) 
+[![](http://i.imgur.com/gkjrnxm.png)](http://i.imgur.com/nMRF8hu.png) 
+[![](http://i.imgur.com/AfrrJeW.png)](http://i.imgur.com/JzH80Dy.png) 
 
-### Features
-  * *Multi-scale simulation of a big, but finite, world.* 
-    The player and the surrounding area are simulated accurately. 
-    Simulteneously, less precise macroscopic scale simulation updates the rest of the world.
-    All actions of each individual actor (including the player) 
-    become seemlessly incorporated into the big picture of the living and evolving world.    
-  * *Semi-continuous grid-based movement and physics.*
-    To avoid ad hoc discrete time systems, which are frequently quite "peculiar",
-    the time is absolutele and continuous, all objects move simulateneously. 
-    However, their movement is tied to the grid, largely preserving the precision and the feel 
-    of familiar grid-based games. The model naturally supports physical interactions between
-    game objects, leading to fun and complex tactical combat.    
-  * The game features multiple civilizations, which may be at war with each other. 
-    You may take part in these wars, or you may go explore underground dungeons
-    and forests infested with monsters.
-    A lot of stuff is happening even without your participation.     
-  * The game is designed to be light on computer resources.   
+## Features
+  The game is quite different from many Roguelikes and RPG games. First of all, 
+  the time system is semi-continuous: Your discrete actions are simulated in the
+  continuous space and time, so you get interesting combat mechanics with
+  a lot of pushing and dodging, while largely preserving the feel of familiar
+  grid based games.  
 
-Half-done:     
-
-  * Economics of the world. Merchants and trade.
-  * Fully functional player-like NPC actors and their hierarchical organizations.   
-  * Special attacking techniques for some weapons (such as long swords, spears, mauls etc.).   
-  * Complex overworld topology.
-
-Not implemented yet:    
-
-  * Spell casting.   
-  * Rumors, information spreading, reputation.    
-  * More interesting NPCs and locations. More complex world topology.   
-  * Apocalyptic events, villains, and winning conditions.    
+  The game world is simulated on two scales: The area around the player is 
+  simulated precisely with every detail taken into account, however, 
+  the rest of the world is not static and is evolving too with a bit 
+  coarser but still quite accurate simulation. Both simulation levels 
+  interact seamlessly, so your small actions will affect the whole big world.
+  You can defend your village and make it stronger in the war with a neighboring
+  tribe, or you can go explore the world and fight monsters in 
+  the underground dungeons.
+  
+  Many features, for example social organizations of the NPCs, reputation, rumors,
+  spell casting, villains, apocalyptic events and global quests are not 
+  implemented yet.
 
 ### How to build
 On Linux and (probably) OSX. Install the latest `ocaml` package for your system.
@@ -70,14 +57,14 @@ Press `Esc` or `q` to close the inventory. There are 5 specialized slots in the 
 container: 1) left hand, 2) torso, 3) right hand, 4) head, 5) slot for coins. (There is no 
 difference between the left and the right hand).
 
-![](http://i.imgur.com/8jVzEue.png)
+![](http://i.imgur.com/MphfbLn.png)
 
 #### Merchants and barter
 A merchant can be identified by the **cloak-like symbol on their shoulder**. 
 They often can be found in the regions with markets (such regions are marked by a golden ring on the map),
 Small nations may have no or very few merchants. 
 
-![](http://i.imgur.com/wGMhzY2.png)
+![](http://i.imgur.com/fmyuHnA.png)
 
 To trade with a merchant, stand next to him or her, switch to the interation mode `v`, and
 press `v` or `Enter` again. The barter mode works the same way as the inventory mode.
@@ -121,12 +108,13 @@ Affects the speed of movement, reaction time, the strength and the duration of y
 `DEF (Defense)`. The probability to block an attack. All momentum of the attack is still absorbed,
 so defense does not improve evasion.
 
+![](http://i.imgur.com/SWRG9ws.png)
+
 ### License
 The game is distributed under GPL3 license. 
 Included GLCaml library is distributed under BSD 2-clause license.
 
-### More screenshots
-[![](http://i.imgur.com/gm0e3Sv.png)](http://i.imgur.com/t4jiXQA.png) 
-[![](http://i.imgur.com/g2d95a4.png)](http://i.imgur.com/KQTFw5g.png) 
-[![](http://i.imgur.com/CS3wUVw.png)](http://i.imgur.com/qzAvnpq.png) 
-[![](http://i.imgur.com/MjwGhlD.png)](http://i.imgur.com/c7chiWd.png) 
+### More Screenshots
+[![](http://i.imgur.com/s9xubOd.png)](http://i.imgur.com/pwexIt1.png) 
+
+<!-- [![](http://i.imgur.com/qyjsJ3E.png)](http://i.imgur.com/xbX6Pll.png)  -->
