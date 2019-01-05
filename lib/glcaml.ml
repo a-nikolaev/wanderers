@@ -161,11 +161,7 @@ let copy_double_array src dst = copy_byte_array
 (** Convert a byte_array or ubyte_array to a string *)
 let to_string a =
 	let l = Bigarray.Array1.dim a in
-	let s = String.create l in
-	for i = 0 to (l - 1) do
-		s.[i] <- a.{i}
-	done;
-	s
+  String.init l (fun i -> a.{i})
 
 (** Convert between booleans and ints *)
 let int_of_bool b = if b then 1 else 0

@@ -564,7 +564,7 @@ module Draw = struct
 			(* Read in TGA data *)	
 			let bpp = bitsperpixel/8 in
 			let len = width*height*bpp in
-			let data = String.make len ' ' in
+			let data = Bytes.make len ' ' in
 			let rec decode_run byte pos =
 				let rtype = (byte land 0x80) lsr 7 
 				and rlen = ((byte land 0x7F) + 1) in
@@ -578,13 +578,13 @@ module Draw = struct
 					and r = if bpp > 2 then input_byte ic else -1
 					and a = if bpp > 3 then input_byte ic else -1 in
 					for i = 0 to rlen - 1 do
-						String.set data (pos + bpp*i + 0) (char_of_int b);
-						String.set data (pos + bpp*i + 1) (char_of_int g);
-						if bpp > 2 then String.set data (pos + bpp*i + 2) (char_of_int r);
-						if bpp > 3 then String.set data (pos + bpp*i + 3) (char_of_int a);
+						Bytes.set data (pos + bpp*i + 0) (char_of_int b);
+						Bytes.set data (pos + bpp*i + 1) (char_of_int g);
+						if bpp > 2 then Bytes.set data (pos + bpp*i + 2) (char_of_int r);
+						if bpp > 3 then Bytes.set data (pos + bpp*i + 3) (char_of_int a);
 					done;
 				end;	
-				if newpos < String.length data then	decode_run (input_byte ic) (newpos) else ();
+				if newpos < Bytes.length data then	decode_run (input_byte ic) (newpos) else ();
 			in 
 			if datatypecode = 2 then 
 				really_input ic data 0 len
@@ -597,7 +597,7 @@ module Draw = struct
 				then From_lower_left
 				else From_upper_left
 			in
-			(width, height, bitsperpixel, data, orientation);
+			(width, height, bitsperpixel, Bytes.to_string data, orientation);
 			with
 			_ -> raise (TGA_failure "Unable to load TGA file")
 	

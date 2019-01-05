@@ -236,12 +236,7 @@ let init_full opt_string b_debug =
 
       let rnd_seed_string () =
         let len = 1 + Random.int 6 in
-        let s = String.make len 'a' in
-        for i = 0 to len-1 do 
-          let c = Char.chr (Char.code 'a' + Random.int 26) in 
-          (* Going to use String.set until version 4.02 is everywhere and we can move on to String.init *)
-          s.[i] <- c
-        done;
+        let s = String.init len (fun i -> Char.chr (Char.code 'a' + Random.int 26)) in
         Printf.printf "Random seed: %s\n%!" s;
         s
       in

@@ -76,9 +76,12 @@ let insert ch c =
     c
 
 let string_of_buf c =
+  (*
   let s = String.make c.len ' ' in
   for i = 0 to c.len-1 do s.[i] <- c.buf.(i) done;
   s
+  *)
+  String.init c.len (fun i -> c.buf.(i))
 
 let fill s c =
   let len = min max_size (String.length s) in
